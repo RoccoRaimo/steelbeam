@@ -1,6 +1,6 @@
 import os, pathlib
 import pytest
 
-os.chdir( pathlib.Path.cwd() / 'Tests' )
+os.chdir(pathlib.Path.cwd() / 'tests')
 
-pytest.main()
+pytest.main(['-v', '--tb=short'])

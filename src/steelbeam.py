@@ -32,7 +32,26 @@ for profile_t in database:
 profile_list = []
 for profile_t in profile_type:
     for prof in database[profile_t]:
-        profile_list.append(prof) 
+        profile_list.append(prof)
+
+# Helper function to get profiles by type
+def get_profiles_by_type(profile_type_name: str) -> list:
+    """
+    Get list of profiles for a specific type.
+    
+    Parameters
+    ----------
+    profile_type_name : str
+        The type of profile (e.g., 'IPE_SECTION', 'HE_SECTION', 'IPE_SECTION')
+    
+    Returns
+    -------
+    list
+        List of profile names belonging to the specified type
+    """
+    if profile_type_name not in database:
+        raise ValueError(f"Type '{profile_type_name}' not found. Available types: {list(database.keys())}")
+    return list(database[profile_type_name].keys()) 
 
 from . import analysis_EC
 from . import analysis_AISC
@@ -125,7 +144,11 @@ class SteelBeam:
                             self.section_w_pl_z = float(database[value_type][prof]['Wpl_z']) * mm**3
                             self.h_w = (float(database[value_type][prof]['h']) - 2 * float(database[value_type][prof]['tf'])) * mm
                             self.t_w = float(database[value_type][prof]['tw']) * mm
-                            self.b = float(database[value_type][prof]['bf']) * mm
+                            # Use 'b' for L_SECTION, 2L_SECTION, 2C_SECTION; 'bf' for others
+                            if value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
+                                self.b = float(database[value_type][prof]['b']) * mm
+                            else:
+                                self.b = float(database[value_type][prof]['bf']) * mm
                             self.t_f = float(database[value_type][prof]['tf']) * mm
                         else:
                             self.section_area = float(database[value_type][prof]['A']) 
@@ -137,7 +160,11 @@ class SteelBeam:
                             self.section_w_pl_z = float(database[value_type][prof]['Wpl_z'])
                             self.h_w = float(database[value_type][prof]['h']) - 2 * float(database[value_type][prof]['tf'])
                             self.t_w = float(database[value_type][prof]['tw'])
-                            self.b = float(database[value_type][prof]['bf'])
+                            # Use 'b' for L_SECTION, 2L_SECTION, 2C_SECTION; 'bf' for others
+                            if value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
+                                self.b = float(database[value_type][prof]['b'])
+                            else:
+                                self.b = float(database[value_type][prof]['bf'])
                             self.t_f = float(database[value_type][prof]['tf'])
         else:
             raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
