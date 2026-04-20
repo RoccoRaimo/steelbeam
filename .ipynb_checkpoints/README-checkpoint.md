@@ -39,7 +39,7 @@ import steelbeam as sb
 After importing the library, you must create an object representing the steel beam. 
 You can select an existing standard profile from the provided databases (currently only the European one) or define a new profile with custom characteristics.
 
-![How it works](docs/images/image1.gif)
+[INSERIRE GIF DI UN BREVE FUNZIONAMENTO DELLA LIBRERIA]
 
 ## List of features
 
