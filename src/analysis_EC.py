@@ -196,13 +196,15 @@ def bending_moment_axial_y(self, render = False, prefix: str = '', precision: in
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     n_pl_rd = self.section_area * self.f_yk / gamma_m0
     if render==False:
-        if n_ed <= 0.25 * n_pl_rd and n_ed <= 0.5 * self.h_w * self.t_w * self.f_yk / gamma_m0:
+        # Check for web dimensions (for I-sections)
+        web_check = 0.5 * self.h_w * self.t_w * self.f_yk / gamma_m0 if self.h_w is not None and self.t_w is not None else float('inf')
+        if n_ed <= 0.25 * n_pl_rd and n_ed <= web_check:
             bending_moment_y = self.section_w_pl_y * self.f_yk / gamma_m0
         else:
             # For higher axial forces, the moment capacity is reduced
             # This is a simplified implementation; full interaction should be implemented
             n = n_ed / n_pl_rd
-            a = (self.section_area - 2*self.b*self.t_f / self.section_area) 
+            a = (self.section_area - 2*self.b*self.t_f) / self.section_area if self.b is not None and self.t_f is not None else 0
             k =  (1 - n) / (1 - 0.5*a) 
             m_pl_rd_y = self.section_w_pl_y * self.f_yk / gamma_m0 
             bending_moment_y = m_pl_rd_y * k
@@ -244,13 +246,14 @@ def bending_moment_axial_z(self, render = False, prefix: str = '', precision: in
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     n_pl_rd = self.section_area * self.f_yk / gamma_m0
     if render==False:
-        if n_ed <= 0.5 * self.h_w * self.t_w * self.f_yk / gamma_m0:
+        web_check = 0.5 * self.h_w * self.t_w * self.f_yk / gamma_m0 if self.h_w is not None and self.t_w is not None else float('inf')
+        if n_ed <= web_check:
             bending_moment_z = self.section_w_pl_z * self.f_yk / gamma_m0
         else:
             # For higher axial forces, the moment capacity is reduced
             # This is a simplified implementation; full interaction should be implemented
             n = n_ed / n_pl_rd
-            a = (self.section_area - 2*self.b*self.t_f / self.section_area)
+            a = (self.section_area - 2*self.b*self.t_f) / self.section_area if self.b is not None and self.t_f is not None else 0
             k =  1 - ((n - a) / (1 - a))**2 
             m_pl_rd_z = self.section_w_pl_y * self.f_yk / gamma_m0 
             if n <= a: bending_moment_z = m_pl_rd_z
