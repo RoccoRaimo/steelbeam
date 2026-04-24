@@ -7,8 +7,17 @@ A python package for calculation of resistance and stability of steel beams, bas
 It is possible to show the Latex output of calculations inside Jupyter Notebook with the optional parameter "render" in every analysis method of SteelBeam.
 """
 
+from . import units
+from . import analysis_EC
+from . import analysis_AISC
+from . import analysis_NBR
+
 from handcalcs.decorator import handcalc
 import handcalcs
+handcalcs.set_option("custom_symbols", {"C": ","})
+
+from forallpeople import Physical
+
 from math import pi
 from math import sqrt
 import os
@@ -16,11 +25,9 @@ import json
 import types
 import functools
 
-handcalcs.set_option("custom_symbols", {"C": ","})
 
-import forallpeople 
-forallpeople.environment('structural', top_level=True)
-from forallpeople import Physical
+
+
 
 # Import the database of steel profiles
 dirname = os.path.dirname(__file__)
@@ -54,9 +61,7 @@ def get_profiles_by_type(profile_type_name: str) -> list:
         raise ValueError(f"Type '{profile_type_name}' not found. Available types: {list(database.keys())}")
     return list(database[profile_type_name].keys()) 
 
-from . import analysis_EC
-from . import analysis_AISC
-from . import analysis_NBR
+
 
 class SteelBeam:
     def __init__(self,
