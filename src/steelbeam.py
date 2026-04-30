@@ -106,8 +106,7 @@ class SteelBeam:
             unit-aware `Physical` objects. When `units='SI'`, numeric inputs are
             interpreted as **meters** for length and **MPa** for stress. When
             `units='Imperial'`, numeric inputs are interpreted as **inches** for
-            length and **ksi** for stress. All values are converted internally
-            to mm-based units (m, Pa base) for calculations.
+            length and **ksi** for stress.
 
         Sign convention
         ------------
@@ -132,7 +131,7 @@ class SteelBeam:
             self.length = length
         elif self.units == 'SI':
             # Input assumed in meters, convert to mm for internal storage
-            self.length = length * mm
+            self.length = length * m
         else:  # IMPERIAL
             # Input assumed in inches, convert to mm for internal storage
             self.length = length * inch
@@ -183,9 +182,11 @@ class SteelBeam:
         if self.profile == 'User defined':
             return
         elif self.profile in profile_list:
+            found = False
             for value_type in database:
                 for prof in database[value_type]:
                     if self.profile == prof:
+                        # Load the database values
                         self.section_area = float(database[value_type][prof]['A']) * mm**2
                         self.section_area_shear_y = float(database[value_type][prof].get('Avy', database[value_type][prof].get('Avz', 0))) * mm**2
                         self.section_area_shear_z = float(database[value_type][prof]['Avz']) * mm**2
@@ -194,7 +195,11 @@ class SteelBeam:
                         self.section_inertia_torsional = float(database[value_type][prof].get('It', database[value_type][prof]['It'])) * mm**4
                         self.section_w_pl_y = float(database[value_type][prof]['Wpl_y']) * mm**3
                         self.section_w_pl_z = float(database[value_type][prof].get('Wpl_z', database[value_type][prof]['Wpl_y'])) * mm**3
-                    
+                        self.h_w = (float(database[value_type][prof]['h']) - 2 * float(database[value_type][prof]['tf'])) * mm
+                        self.t_w = float(database[value_type][prof]['tw']) * mm
+                        self.b = float(database[value_type][prof]['bf']) * mm
+                        self.t_f = float(database[value_type][prof]['tf']) * mm
+
                     # Handle dimensions based on section type
                     if value_type == 'CHS_SECTION':
                         self.h_w = float(database[value_type][prof]['OD']) * mm
@@ -215,6 +220,11 @@ class SteelBeam:
                         else:
                             self.b = float(database[value_type][prof]['bf']) * mm
                         self.t_f = float(database[value_type][prof]['tf']) * mm
+                    
+                    found = True
+                    break
+                if found:
+                    break
         else:
             raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
 
