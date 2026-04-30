@@ -109,10 +109,10 @@ class SteelBeam:
 
             All 'User defined' parameters can be provided as plain numeric values or as
             unit-aware `Physical` objects. When `units='SI'`, numeric inputs are
-            interpreted as mm/mm²/mm³/mm⁴ and `elastic_modulus`/`f_yk` as MPa.
-            When `units='imperial'`, numeric inputs are interpreted as
-            inches/in²/in³/in⁴ and `elastic_modulus`/`f_yk` as ksi; they are
-            converted internally to mm-based units and MPa.
+            interpreted as **meters** for length and **MPa** for stress. When
+            `units='Imperial'`, numeric inputs are interpreted as **inches** for
+            length and **ksi** for stress. All values are converted internally
+            to mm-based units (m, Pa base) for calculations.
 
         Sign convention
         ------------
@@ -136,9 +136,11 @@ class SteelBeam:
         if isinstance(length, Physical):
             self.length = length
         elif self.units == 'SI':
-            self.length = length * mm  # Assume input is in meters, convert to mm
+            # Input assumed in meters, convert to mm for internal storage
+            self.length = length * mm
         else:  # IMPERIAL
-            self.length = length * inch  # Assume input is in inches
+            # Input assumed in inches, convert to mm for internal storage
+            self.length = length * inch
 
         if isinstance(elastic_modulus, Physical):
             self.elastic_modulus = elastic_modulus
@@ -218,99 +220,26 @@ class SteelBeam:
         else:
             raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
 
-    _unit_conversion = {
-        'length': {'imp_factor': 25.4, 'si_unit': 'mm', 'imp_unit': 'in'},
-        'area': {'imp_factor': 645.16, 'si_unit': 'mm**2', 'imp_unit': 'in**2'},
-        'inertia': {'imp_factor': 416231.0597, 'si_unit': 'mm**4', 'imp_unit': 'in**4'},
-        'section_modulus': {'imp_factor': 16387.064, 'si_unit': 'mm**3', 'imp_unit': 'in**3'},
-        'stress': {'imp_factor': 6.895, 'si_unit': 'MPa', 'imp_unit': 'ksi'},
-        'force': {'imp_factor': 4.4482216152605, 'si_unit': 'N', 'imp_unit': 'lbf'},
-        'moment': {'imp_factor': 112.984829018, 'si_unit': 'Nmm', 'imp_unit': 'lbf*in'},
-        'ratio': {'imp_factor': 1, 'si_unit': '', 'imp_unit': ''},
-    }
-
     @property
     def input_units(self) -> dict:
-        """
-        Return the units used for the input values when creating the beam.
-        
-        Returns
-        -------
-        dict
-            Dictionary with the unit labels for each quantity type as provided by the user.
-        """
-        if self.units == 'SI':
-            return {
-                'length': 'm',
-                'area': 'mm²',
-                'inertia': 'mm⁴',
-                'section_modulus': 'mm³',
-                'stress': 'MPa',
-                'force': 'kN',
-                'moment': 'kNm',
-            }
-        else:  # IMPERIAL
-            return {
-                'length': 'in',
-                'area': 'in²',
-                'inertia': 'in⁴',
-                'section_modulus': 'in³',
-                'stress': 'ksi',
-                'force': 'lbf',
-                'moment': 'lbf*in',
-            }
+        """Return the units used for input values when creating the beam."""
+        return units.INPUT_UNITS[self.units]
 
     def get_input_unit(self, quantity_type: str) -> str:
         """Get the input unit for a specific quantity type."""
-        return self.input_units.get(quantity_type, '')
+        return units.get_input_unit(quantity_type, self.units)
 
     def _unit_label(self, quantity_type: str, units: str = None) -> str:
         """Return the unit label string for display purposes."""
-        units = self.units if units is None else units.upper()
-        if units not in ('SI', 'IMPERIAL'):
-            raise ValueError("units must be either 'SI' or 'IMPERIAL'")
-        
-        info = self._unit_conversion.get(quantity_type)
-        if info is None:
-            return ''
-        
-        # Return formatted string representation
-        unit_str = info['si_unit'] if units == 'SI' else info['imp_unit']
-        # Convert ** to superscript for display
-        return unit_str.replace('**2', '²').replace('**3', '³').replace('**4', '⁴')
+        return units.get_unit_label(quantity_type, self.units if units is None else units)
 
-    def convert_to_units(self, value, quantity_type: str, units: str = None):
-        units = self.units if units is None else units.upper()
-        if units not in ('SI', 'IMPERIAL'):
-            raise ValueError("units must be either 'SI' or 'IMPERIAL'")
-        
-        info = self._unit_conversion.get(quantity_type)
-        if info is None:
-            raise ValueError(f"Unknown quantity_type '{quantity_type}'")
-
-        if value is None:
-            return None
-        
-        if isinstance(value, Physical):
-            target_unit = info['si_unit'] if units == 'SI' else info['imp_unit']
-            try:
-                # Convert to the target unit string (e.g., 'mm**2')
-                return value.to(target_unit)
-            except Exception as e:
-                # Fallback: try to interpret as base unit if conversion fails
-                # This handles cases where the unit string might be slightly off
-                return value
-        
-        # If value is numeric (shouldn't happen with fixed __init__), treat as base unit
-        # and convert to target
-        if units == 'SI':
-            return value * eval(info['si_unit'])
-        else:
-            # Convert from SI base to Imperial
-            si_val = value * eval(info['si_unit'])
-            return si_val.to(info['imp_unit'])
+    def convert_to_units(self, value, quantity_type: str, units: str = None) -> float:
+        """Convert a value to the display unit system."""
+        target_units = self.units if units is None else units.upper()
+        return units.convert_physical_to_display(value, quantity_type, target_units)
 
     def _analysis_quantity_type(self, method_name: str) -> str | None:
+        """Map analysis method names to quantity types."""
         name = method_name.lower()
         if 'moment' in name or 'bending' in name or 'torsion' in name:
             return 'moment'
@@ -321,6 +250,7 @@ class SteelBeam:
         return None
 
     def _convert_analysis_output(self, value, quantity_type: str):
+        """Convert analysis output to display units."""
         if quantity_type is None or value is None:
             return value
         if isinstance(value, (Physical, int, float)):
@@ -328,80 +258,8 @@ class SteelBeam:
         return value
 
     def get_section_properties(self, units: str = None) -> dict:
-        units = self.units if units is None else units.upper()
-        if units not in ('SI', 'IMPERIAL'):
-            raise ValueError("units must be either 'SI' or 'IMPERIAL'")
-
-        def get_val(attr, si_factor, imp_factor):
-            """
-            Helper to convert Physical object values to display units.
-            si_factor: Multiplier to convert from Base (m, Pa) to SI Display (mm, MPa)
-            imp_factor: Multiplier to convert from Base (m, Pa) to Imp Display (in, ksi)
-            """
-            val = getattr(self, attr)
-            if val is None:
-                return None
-            
-            if isinstance(val, Physical):
-                base_value = val.value  # This is always in base units (m, Pa, etc.)
-                
-                if units == 'SI':
-                    return base_value * si_factor
-                else: # IMPERIAL
-                    return base_value * imp_factor
-            else:
-                # Fallback if not a Physical object (shouldn't happen with fixed init)
-                return val
-
-        # Conversion Factors from Base Units (m, m2, m3, m4, Pa) to Display Units
-        # SI Display: mm, mm2, mm3, mm4, MPa
-        # Imp Display: in, in2, in3, in4, ksi
-        
-        # Length: m -> mm (x1000) | m -> in (/0.0254)
-        len_si = 1000.0
-        len_imp = 1.0 / 0.0254
-        
-        # Area: m2 -> mm2 (x1e6) | m2 -> in2 (/0.00064516)
-        area_si = 1e6
-        area_imp = 1.0 / 0.00064516
-        
-        # Inertia: m4 -> mm4 (x1e12) | m4 -> in4 (/4.16231e-10 approx)
-        # 1 m = 39.3701 in. 1 m4 = 39.3701^4 in4 = 240250000 in4 approx
-        # Actually: 1 m = 1000 mm. 1 m = 39.3700787 in.
-        # 1 m4 = (39.3700787)^4 in4 = 240250000.0...
-        # Let's use the exact conversion: 1 m = 39.37007874015748 in
-        # 1 m4 = (39.37007874015748)**4
-        inertia_si = 1e12
-        inertia_imp = (1.0 / 0.0254) ** 4
-        
-        # Section Modulus: m3 -> mm3 (x1e9) | m3 -> in3
-        mod_si = 1e9
-        mod_imp = (1.0 / 0.0254) ** 3
-        
-        # Stress: Pa -> MPa (x1e-6) | Pa -> ksi (x1e-6 / 6.89476)
-        # 1 ksi = 6.89476 MPa = 6.89476e6 Pa
-        stress_si = 1e-6
-        stress_imp = 1e-6 / 6.894757293168361
-
-        return {
-            'length': get_val('length', len_si, len_imp),
-            'elastic_modulus': get_val('elastic_modulus', stress_si, stress_imp),
-            'f_yk': get_val('f_yk', stress_si, stress_imp),
-            'section_area': get_val('section_area', area_si, area_imp),
-            'section_area_shear_y': get_val('section_area_shear_y', area_si, area_imp),
-            'section_area_shear_z': get_val('section_area_shear_z', area_si, area_imp),
-            'section_inertia_y': get_val('section_inertia_y', inertia_si, inertia_imp),
-            'section_inertia_z': get_val('section_inertia_z', inertia_si, inertia_imp),
-            'section_inertia_torsional': get_val('section_inertia_torsional', inertia_si, inertia_imp),
-            'section_w_pl_y': get_val('section_w_pl_y', mod_si, mod_imp),
-            'section_w_pl_z': get_val('section_w_pl_z', mod_si, mod_imp),
-            'h_w': get_val('h_w', len_si, len_imp),
-            't_w': get_val('t_w', len_si, len_imp),
-            'b': get_val('b', len_si, len_imp),
-            't_f': get_val('t_f', len_si, len_imp),
-            'units': units,
-            'input_units': self.input_units,
-        }
+        target_units = self.units if units is None else units.upper()
+        return units.get_section_properties(self, target_units)
     
     def __repr__(self):
         props = self.get_section_properties(self.units)

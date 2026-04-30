@@ -6,10 +6,6 @@ Unit conversion and handling for steelbeam package, using forallpeople library.
 
 """
 
-"""
-units.py - Unit conversion and handling for steelbeam package.
-"""
-
 import forallpeople 
 forallpeople.environment('structural', top_level=True)
 from forallpeople import Physical
@@ -196,3 +192,66 @@ def create_physical_from_input(value, unit_system: str, quantity_type: str) -> P
     
     unit_str = unit_map.get(quantity_type, 'mm' if unit_system == 'SI' else 'inch')
     return value * eval(unit_str)
+
+
+def get_section_properties(beam, units: str) -> dict:
+    """
+    Get section properties for a SteelBeam in the specified unit system.
+    
+    Parameters
+    ----------
+    beam : SteelBeam
+        The steel beam instance
+    units : str
+        Target unit system ('SI' or 'IMPERIAL')
+    
+    Returns
+    -------
+    dict
+        Dictionary with all section properties in display units
+    """
+    units = units.upper()
+    if units not in ('SI', 'IMPERIAL'):
+        raise ValueError("units must be either 'SI' or 'IMPERIAL'")
+
+    def get_val(attr):
+        val = getattr(beam, attr)
+        if val is None:
+            return None
+        if isinstance(val, Physical):
+            return convert_physical_to_display(val, attr, units)
+        return val
+
+    return {
+        'length': get_val('length'),
+        'elastic_modulus': get_val('elastic_modulus'),
+        'f_yk': get_val('f_yk'),
+        'section_area': get_val('section_area'),
+        'section_area_shear_y': get_val('section_area_shear_y'),
+        'section_area_shear_z': get_val('section_area_shear_z'),
+        'section_inertia_y': get_val('section_inertia_y'),
+        'section_inertia_z': get_val('section_inertia_z'),
+        'section_inertia_torsional': get_val('section_inertia_torsional'),
+        'section_w_pl_y': get_val('section_w_pl_y'),
+        'section_w_pl_z': get_val('section_w_pl_z'),
+        'h_w': get_val('h_w'),
+        't_w': get_val('t_w'),
+        'b': get_val('b'),
+        't_f': get_val('t_f'),
+        'units': units,
+        'input_units': INPUT_UNITS[units],
+    }
+
+
+# Unit conversion configuration for SteelBeam class
+# Used for output conversion from internal Physical objects to display units
+UNIT_CONVERSION = {
+    'length': {'imp_factor': 25.4, 'si_unit': 'mm', 'imp_unit': 'in'},
+    'area': {'imp_factor': 645.16, 'si_unit': 'mm**2', 'imp_unit': 'in**2'},
+    'inertia': {'imp_factor': 416231.0597, 'si_unit': 'mm**4', 'imp_unit': 'in**4'},
+    'section_modulus': {'imp_factor': 16387.064, 'si_unit': 'mm**3', 'imp_unit': 'in**3'},
+    'stress': {'imp_factor': 6.895, 'si_unit': 'MPa', 'imp_unit': 'ksi'},
+    'force': {'imp_factor': 4.4482216152605, 'si_unit': 'N', 'imp_unit': 'lbf'},
+    'moment': {'imp_factor': 112.984829018, 'si_unit': 'Nmm', 'imp_unit': 'lbf*in'},
+    'ratio': {'imp_factor': 1, 'si_unit': '', 'imp_unit': ''},
+}
