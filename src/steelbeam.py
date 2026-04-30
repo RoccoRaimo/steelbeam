@@ -2,9 +2,9 @@
 steelbeam - Eng. Rocco Raimo
 ---
 A python package for calculation of resistance and stability of steel beams, based on multiple national codes.
+---
 
---
-It is possible to show the Latex output of calculations inside Jupyter Notebook with the optional parameter "render" in every analysis method of SteelBeam.
+The module steelbeam.py contains the general SteelBeam class that represents the steel beam object.
 """
 
 from . import units
@@ -18,15 +18,10 @@ handcalcs.set_option("custom_symbols", {"C": ","})
 
 from forallpeople import Physical
 
-from math import pi
-from math import sqrt
 import os
 import json
 import types
 import functools
-
-
-
 
 
 # Import the database of steel profiles
@@ -162,6 +157,9 @@ class SteelBeam:
         self.profile = profile
 
         def _unit_value(value, si_unit, imperial_factor):
+            """
+            Function to interrogate the input values and turn them into an SI based values
+            """
             if value is None:
                 return None
             if isinstance(value, Physical):
@@ -222,20 +220,20 @@ class SteelBeam:
 
     @property
     def input_units(self) -> dict:
-        """Return the units used for input values when creating the beam."""
+        """Return the units used for input values when creating the beam"""
         return units.INPUT_UNITS[self.units]
 
     def get_input_unit(self, quantity_type: str) -> str:
-        """Get the input unit for a specific quantity type."""
+        """Get the input unit for a specific quantity type"""
         return units.get_input_unit(quantity_type, self.units)
 
-    def _unit_label(self, quantity_type: str, units: str = None) -> str:
-        """Return the unit label string for display purposes."""
-        return units.get_unit_label(quantity_type, self.units if units is None else units)
+    def _unit_label(self, quantity_type: str, display_units: str = None) -> str:
+        """Return the unit label string for display purposes"""
+        return units.get_unit_label(quantity_type, self.units if display_units is None else display_units)
 
-    def convert_to_units(self, value, quantity_type: str, units: str = None) -> float:
+    def _convert_to_units(self, value, quantity_type: str, display_units: str = None) -> float:
         """Convert a value to the display unit system."""
-        target_units = self.units if units is None else units.upper()
+        target_units = self.units if display_units is None else display_units.upper()
         return units.convert_physical_to_display(value, quantity_type, target_units)
 
     def _analysis_quantity_type(self, method_name: str) -> str | None:
@@ -254,11 +252,11 @@ class SteelBeam:
         if quantity_type is None or value is None:
             return value
         if isinstance(value, (Physical, int, float)):
-            return self.convert_to_units(value, quantity_type, self.units)
+            return self._convert_to_units(value, quantity_type, self.units)
         return value
 
-    def get_section_properties(self, units: str = None) -> dict:
-        target_units = self.units if units is None else units.upper()
+    def get_section_properties(self, output_units: str = None) -> dict:
+        target_units = self.units if output_units is None else output_units.upper()
         return units.get_section_properties(self, target_units)
     
     def __repr__(self):

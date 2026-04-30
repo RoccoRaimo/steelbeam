@@ -1,9 +1,10 @@
 """
 steelbeam - Eng. Rocco Raimo
 ---
+A python package for calculation of resistance and stability of steel beams, based on multiple national codes.
+---
 
 Unit conversion and handling for steelbeam package, using forallpeople library.
-
 """
 
 import forallpeople 
@@ -18,9 +19,6 @@ UNIT_FACTORS = {
         'inertia': 1e12,               # m⁴ → mm⁴
         'section_modulus': 1e9,        # m³ → mm³
         'stress': 1e-6,                # Pa → MPa
-        'force': 1e-3,                 # N → kN
-        'moment': 1e-6,                # N·m → kN·m
-        'ratio': 1.0,                  # dimensionless
     },
     'IMPERIAL': {
         'length': 1.0 / 0.0254,        # m → in
@@ -28,9 +26,6 @@ UNIT_FACTORS = {
         'inertia': (1.0 / 0.0254) ** 4, # m⁴ → in⁴
         'section_modulus': (1.0 / 0.0254) ** 3,  # m³ → in³
         'stress': 1e-6 / 6.894757293168361,  # Pa → ksi
-        'force': 1.0 / 4.4482216152605,      # N → lbf
-        'moment': 1.0 / 112.984829018,       # N·m → lbf·ft (adjust as needed)
-        'ratio': 1.0,
     }
 }
 
@@ -42,9 +37,6 @@ UNIT_LABELS = {
         'inertia': 'mm⁴',
         'section_modulus': 'mm³',
         'stress': 'MPa',
-        'force': 'kN',
-        'moment': 'kNm',
-        'ratio': '',
     },
     'IMPERIAL': {
         'length': 'in',
@@ -52,9 +44,6 @@ UNIT_LABELS = {
         'inertia': 'in⁴',
         'section_modulus': 'in³',
         'stress': 'ksi',
-        'force': 'lbf',
-        'moment': 'lbf*in',
-        'ratio': '',
     }
 }
 
@@ -66,8 +55,6 @@ INPUT_UNITS = {
         'inertia': 'mm⁴',
         'section_modulus': 'mm³',
         'stress': 'MPa',
-        'force': 'kN',
-        'moment': 'kNm',
     },
     'IMPERIAL': {
         'length': 'in',
@@ -75,10 +62,41 @@ INPUT_UNITS = {
         'inertia': 'in⁴',
         'section_modulus': 'in³',
         'stress': 'ksi',
-        'force': 'lbf',
-        'moment': 'lbf*in',
     }
 }
+
+def create_physical_from_input(value, unit_system: str, quantity_type: str) -> Physical:
+    """
+    Create a Physical object from user input.
+    
+    Parameters
+    ----------
+    value : float
+        Numeric input value
+    unit_system : str
+        'SI' or 'IMPERIAL'
+    quantity_type : str
+        Type of quantity
+    
+    Returns
+    -------
+    Physical
+        Physical object with proper units
+    """
+    if isinstance(value, Physical):
+        return value
+    
+    # Map quantity types to forallpeople unit strings
+    unit_map = {
+        'length': 'mm' if unit_system == 'SI' else 'inch',
+        'area': 'mm**2' if unit_system == 'SI' else 'inch**2',
+        'inertia': 'mm**4' if unit_system == 'SI' else 'inch**4',
+        'section_modulus': 'mm**3' if unit_system == 'SI' else 'inch**3',
+        'stress': 'MPa' if unit_system == 'SI' else 'ksi',
+    }
+    
+    unit_str = unit_map.get(quantity_type, 'mm' if unit_system == 'SI' else 'inch')
+    return value * eval(unit_str)
 
 
 def convert_physical_to_display(value: Physical, quantity_type: str, units: str) -> float:
@@ -155,43 +173,9 @@ def format_value(val: float) -> str:
     if isinstance(val, float) and val.is_integer():
         return f"{int(val)}"
     
-    # Format with up to 3 decimal places, strip trailing zeros
-    formatted = f"{val:.3f}".rstrip('0').rstrip('.')
+    # Format with up to 2 decimal places, strip trailing zeros
+    formatted = f"{val:.2f}".rstrip('0').rstrip('.')
     return formatted
-
-
-def create_physical_from_input(value, unit_system: str, quantity_type: str) -> Physical:
-    """
-    Create a Physical object from user input.
-    
-    Parameters
-    ----------
-    value : float
-        Numeric input value
-    unit_system : str
-        'SI' or 'IMPERIAL'
-    quantity_type : str
-        Type of quantity
-    
-    Returns
-    -------
-    Physical
-        Physical object with proper units
-    """
-    if isinstance(value, Physical):
-        return value
-    
-    # Map quantity types to forallpeople unit strings
-    unit_map = {
-        'length': 'mm' if unit_system == 'SI' else 'inch',
-        'area': 'mm**2' if unit_system == 'SI' else 'inch**2',
-        'inertia': 'mm**4' if unit_system == 'SI' else 'inch**4',
-        'section_modulus': 'mm**3' if unit_system == 'SI' else 'inch**3',
-        'stress': 'MPa' if unit_system == 'SI' else 'ksi',
-    }
-    
-    unit_str = unit_map.get(quantity_type, 'mm' if unit_system == 'SI' else 'inch')
-    return value * eval(unit_str)
 
 
 def get_section_properties(beam, units: str) -> dict:
@@ -214,12 +198,32 @@ def get_section_properties(beam, units: str) -> dict:
     if units not in ('SI', 'IMPERIAL'):
         raise ValueError("units must be either 'SI' or 'IMPERIAL'")
 
+    # Mapping from attribute names to quantity types
+    attr_to_quantity = {
+        'length': 'length',
+        'elastic_modulus': 'stress',
+        'f_yk': 'stress',
+        'section_area': 'area',
+        'section_area_shear_y': 'area',
+        'section_area_shear_z': 'area',
+        'section_inertia_y': 'inertia',
+        'section_inertia_z': 'inertia',
+        'section_inertia_torsional': 'inertia',
+        'section_w_pl_y': 'section_modulus',
+        'section_w_pl_z': 'section_modulus',
+        'h_w': 'length',
+        't_w': 'length',
+        'b': 'length',
+        't_f': 'length',
+    }
+
     def get_val(attr):
         val = getattr(beam, attr)
         if val is None:
             return None
         if isinstance(val, Physical):
-            return convert_physical_to_display(val, attr, units)
+            quantity_type = attr_to_quantity.get(attr, attr)
+            return convert_physical_to_display(val, quantity_type, units)
         return val
 
     return {
@@ -243,15 +247,15 @@ def get_section_properties(beam, units: str) -> dict:
     }
 
 
-# Unit conversion configuration for SteelBeam class
-# Used for output conversion from internal Physical objects to display units
-UNIT_CONVERSION = {
-    'length': {'imp_factor': 25.4, 'si_unit': 'mm', 'imp_unit': 'in'},
-    'area': {'imp_factor': 645.16, 'si_unit': 'mm**2', 'imp_unit': 'in**2'},
-    'inertia': {'imp_factor': 416231.0597, 'si_unit': 'mm**4', 'imp_unit': 'in**4'},
-    'section_modulus': {'imp_factor': 16387.064, 'si_unit': 'mm**3', 'imp_unit': 'in**3'},
-    'stress': {'imp_factor': 6.895, 'si_unit': 'MPa', 'imp_unit': 'ksi'},
-    'force': {'imp_factor': 4.4482216152605, 'si_unit': 'N', 'imp_unit': 'lbf'},
-    'moment': {'imp_factor': 112.984829018, 'si_unit': 'Nmm', 'imp_unit': 'lbf*in'},
-    'ratio': {'imp_factor': 1, 'si_unit': '', 'imp_unit': ''},
-}
+## Unit conversion configuration for SteelBeam class
+## Used for output conversion from internal Physical objects to display units
+#UNIT_CONVERSION = {
+#    'length': {'imp_factor': 25.4, 'si_unit': 'mm', 'imp_unit': 'in'},
+#    'area': {'imp_factor': 645.16, 'si_unit': 'mm**2', 'imp_unit': 'in**2'},
+#    'inertia': {'imp_factor': 416231.0597, 'si_unit': 'mm**4', 'imp_unit': 'in**4'},
+#    'section_modulus': {'imp_factor': 16387.064, 'si_unit': 'mm**3', 'imp_unit': 'in**3'},
+#    'stress': {'imp_factor': 6.895, 'si_unit': 'MPa', 'imp_unit': 'ksi'},
+#    'force': {'imp_factor': 4.4482216152605, 'si_unit': 'N', 'imp_unit': 'lbf'},
+#    'moment': {'imp_factor': 112.984829018, 'si_unit': 'Nmm', 'imp_unit': 'lbf*in'},
+#    'ratio': {'imp_factor': 1, 'si_unit': '', 'imp_unit': ''},
+#}

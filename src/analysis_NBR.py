@@ -1,9 +1,10 @@
 """
 steelbeam - Eng. Rocco Raimo
-
+---
+A python package for calculation of resistance and stability of steel beams, based on multiple national codes.
 ---
 
-ANALYSIS BASED ON NBR
+The module analysis_NBR.py contains the beam analysis for the beam object based on NBR.
 
 """
 

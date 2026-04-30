@@ -1,9 +1,10 @@
 """
 steelbeam - Eng. Rocco Raimo
-
+---
+A python package for calculation of resistance and stability of steel beams, based on multiple national codes.
 ---
 
-ANALYSIS BASED ON AISC - AASHTO
+The module analysis_AISC.py contains the beam analysis for the beam object based on AISC and AASHTO.
 
 """
 
