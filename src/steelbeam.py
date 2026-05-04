@@ -85,22 +85,46 @@ class SteelBeam:
         length: Length of the beam;
         elastic_modulus: Elastic modulus of the steel;
         f_yk: yielding tension for the steel;
-        profile: The name of the section considered. It is possible to assign a 'User defined' section or choose a profile contained in the database.
-            The list of profiles in the available database can be accessed with the ......
+        profile: The name of the considered section. It is possible to assign a 'User defined' section or choose a profile contained in the database.
+            The list of profiles in the available database can be accessed with steelbeam.get_profiles_by_type('profile_type'), specifying one of the following type: 
+                ['I_SECTION',
+                'L_SECTION',
+                'C_SECTION',
+                'T_SECTION',
+                'CHS_SECTION',
+                'RHS_SECTION',
+                '2L_SECTION',
+                '2C_SECTION']
+            
             In case of 'User defined' profile the following parameters can be defined: 
-            section_area = gross area of the steel section
-            section_area_shear_y = area for shear calculation along the y-axis
-            section_area_shear_z = area for shear calculation along the z-axis
-            section_inertia_y = inertia of the steel section around the y-axis (principal)
-            section_inertia_z = inertia of the steel section around the z-axis (secondary)
-            section_inertia_torsional = torsional inertia of the steel section
-            section_w_pl_y = plastic modulus of resistance around the y-axis
-            section_w_pl_z = plastic modulus of resistance around the z-axis
-            h_w = height of the web (for I-sections: h - 2*tf)
-            t_w = thickness of the web
-            b = width of the flange (base)
-            t_f = thickness of the flange
-            units = unit system for plain numeric inputs ('SI' or 'Imperial')
+
+            USER DEFINED SECTION TEMPLATE (copy and paste as starting point):
+            -------------------------------------------------------------------
+            SteelBeam(
+                length=6.0,                           # Length in meters (SI) or inches (Imperial)
+                elastic_modulus=210000,               # E in MPa (SI) or ksi (Imperial)
+                f_yk=355,                             # Yield strength in MPa (SI) or ksi (Imperial)
+                profile='User defined',
+                
+                # Section properties (all values in SI units: mm, mm², mm³, mm⁴ or in, in², in³, in⁴)
+                section_area=7808,                    # Gross area of the steel section [mm² or in²]
+                section_area_shear_y=4800,            # Shear area along y-axis [mm² or in²]
+                section_area_shear_z=2400,            # Shear area along z-axis [mm² or in²]
+                section_inertia_y=35100000,           # Inertia around y-axis (principal) [mm⁴ or in⁴]
+                section_inertia_z=2100000,            # Inertia around z-axis (secondary) [mm⁴ or in⁴]
+                section_inertia_torsional=500000,     # Torsional inertia [mm⁴ or in⁴]
+                section_w_pl_y=420000,                # Plastic modulus around y-axis [mm³ or in³]
+                section_w_pl_z=85000,                 # Plastic modulus around z-axis [mm³or in³]
+                
+                # Geometric dimensions (optional, for detailed calculations)
+                h_w=240,                              # Height of the web [mm or in]
+                t_w=8,                                # Thickness of the web [mm or in]
+                b=150,                                # Width of the flange [mm or in]
+                t_f=12,                               # Thickness of the flange [mm or in]
+                
+                units='SI'                            # 'SI' or 'Imperial'
+            )
+            -------------------------------------------------------------------
 
             All 'User defined' parameters can be provided as plain numeric values or as
             unit-aware `Physical` objects. When `units='SI'`, numeric inputs are
@@ -181,52 +205,58 @@ class SteelBeam:
         self.t_f = _unit_value(t_f, mm, 25.4)
         if self.profile == 'User defined':
             return
-        elif self.profile in profile_list:
-            found = False
-            for value_type in database:
-                for prof in database[value_type]:
-                    if self.profile == prof:
-                        # Load the database values
-                        self.section_area = float(database[value_type][prof]['A']) * mm**2
-                        self.section_area_shear_y = float(database[value_type][prof].get('Avy', database[value_type][prof].get('Avz', 0))) * mm**2
-                        self.section_area_shear_z = float(database[value_type][prof]['Avz']) * mm**2
-                        self.section_inertia_y = float(database[value_type][prof]['Iy']) * mm**4
-                        self.section_inertia_z = float(database[value_type][prof].get('Iz', database[value_type][prof]['Iy'])) * mm**4
-                        self.section_inertia_torsional = float(database[value_type][prof].get('It', database[value_type][prof]['It'])) * mm**4
-                        self.section_w_pl_y = float(database[value_type][prof]['Wpl_y']) * mm**3
-                        self.section_w_pl_z = float(database[value_type][prof].get('Wpl_z', database[value_type][prof]['Wpl_y'])) * mm**3
-                        self.h_w = (float(database[value_type][prof]['h']) - 2 * float(database[value_type][prof]['tf'])) * mm
-                        self.t_w = float(database[value_type][prof]['tw']) * mm
-                        self.b = float(database[value_type][prof]['bf']) * mm
-                        self.t_f = float(database[value_type][prof]['tf']) * mm
+        # Preliminary check
+        profile_found_in_db = False
+        target_value_type = None
 
-                    # Handle dimensions based on section type
-                    if value_type == 'CHS_SECTION':
-                        self.h_w = float(database[value_type][prof]['OD']) * mm
-                        self.t_w = float(database[value_type][prof]['TDES']) * mm
-                        self.b = float(database[value_type][prof]['OD']) * mm
-                        self.t_f = float(database[value_type][prof]['TDES']) * mm
-                    elif value_type == 'RHS_SECTION':
-                        self.h_w = float(database[value_type][prof]['Htot']) * mm
-                        self.t_w = float(database[value_type][prof]['tw']) * mm
-                        self.b = float(database[value_type][prof]['b']) * mm
-                        self.t_f = float(database[value_type][prof]['tf']) * mm
-                    else:
-                        # For I-sections and others
-                        self.h_w = (float(database[value_type][prof]['h']) - 2 * float(database[value_type][prof]['tf'])) * mm
-                        self.t_w = float(database[value_type][prof]['tw']) * mm
-                        if value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
-                            self.b = float(database[value_type][prof]['b']) * mm
-                        else:
-                            self.b = float(database[value_type][prof]['bf']) * mm
-                        self.t_f = float(database[value_type][prof]['tf']) * mm
-                    
-                    found = True
-                    break
-                if found:
-                    break
-        else:
-            raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
+        for value_type, profiles_dict in database.items():
+            if self.profile in profiles_dict:
+                profile_found_in_db = True
+                target_value_type = value_type
+                break
+        if not profile_found_in_db:
+            raise ValueError(f"Profile '{self.profile}' not found in the database. Please use 'User defined'!")
+
+        db_entry = database[target_value_type][self.profile]
+        
+        try:
+            self.section_area = float(db_entry['A']) * mm**2
+            self.section_area_shear_y = float(db_entry.get('Avy', db_entry.get('Avz', 0))) * mm**2
+            self.section_area_shear_z = float(db_entry.get('Avz', 0)) * mm**2
+            self.section_inertia_y = float(db_entry['Iy']) * mm**4
+            self.section_inertia_z = float(db_entry.get('Iz', db_entry.get('Iy', 0))) * mm**4
+            self.section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
+            self.section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
+            self.section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
+            
+            # Gestione dimensioni specifiche
+            if target_value_type == 'CHS_SECTION':
+                self.h_w = float(db_entry['OD']) * mm
+                self.t_w = float(db_entry['TDES']) * mm
+                self.b = float(db_entry['OD']) * mm
+                self.t_f = float(db_entry['TDES']) * mm
+            elif target_value_type == 'RHS_SECTION':
+                # Assicurati che queste chiavi esistano nel tuo database RHS
+                self.h_w = float(db_entry['Htot']) * mm
+                self.t_w = float(db_entry['tw']) * mm
+                self.b = float(db_entry['b']) * mm
+                self.t_f = float(db_entry['tf']) * mm
+            else:
+                # I-sections e altri
+                self.h_w = (float(db_entry['h']) - 2 * float(db_entry['tf'])) * mm
+                self.t_w = float(db_entry['tw']) * mm
+                if target_value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
+                    self.b = float(db_entry['b']) * mm
+                else:
+                    self.b = float(db_entry['bf']) * mm
+                self.t_f = float(db_entry['tf']) * mm
+                
+        except KeyError as e:
+            raise ValueError(f"Missing key '{e}' in database entry for profile '{self.profile}'. Check the database structure.")
+        
+ 
+        # else:
+        #    raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
 
     @property
     def input_units(self) -> dict:
