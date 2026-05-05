@@ -19,6 +19,9 @@ UNIT_FACTORS = {
         'inertia': 1e12,               # m⁴ → mm⁴
         'section_modulus': 1e9,        # m³ → mm³
         'stress': 1e-6,                # Pa → MPa
+        'force': 1.0,                  # N → N
+        'moment': 1.0,                 # N*m → N*m
+        'ratio': 1.0,                  # dimensionless
     },
     'IMPERIAL': {
         'length': 1.0 / 0.0254,        # m → in
@@ -26,6 +29,9 @@ UNIT_FACTORS = {
         'inertia': (1.0 / 0.0254) ** 4, # m⁴ → in⁴
         'section_modulus': (1.0 / 0.0254) ** 3,  # m³ → in³
         'stress': 1e-6 / 6.894757293168361,  # Pa → ksi
+        'force': 1.0 / 4.4482216152605,         # N → lbf
+        'moment': 8.85074576749058,             # N*m → lbf*in
+        'ratio': 1.0,                           # dimensionless
     }
 }
 
@@ -37,6 +43,9 @@ UNIT_LABELS = {
         'inertia': 'mm⁴',
         'section_modulus': 'mm³',
         'stress': 'MPa',
+        'force': 'N',
+        'moment': 'N·m',
+        'ratio': '',
     },
     'IMPERIAL': {
         'length': 'in',
@@ -44,6 +53,9 @@ UNIT_LABELS = {
         'inertia': 'in⁴',
         'section_modulus': 'in³',
         'stress': 'ksi',
+        'force': 'lbf',
+        'moment': 'lbf·in',
+        'ratio': '',
     }
 }
 
@@ -55,6 +67,9 @@ INPUT_UNITS = {
         'inertia': 'mm⁴',
         'section_modulus': 'mm³',
         'stress': 'MPa',
+        'force': 'N',
+        'moment': 'N·m',
+        'ratio': '',
     },
     'IMPERIAL': {
         'length': 'in',
@@ -62,6 +77,9 @@ INPUT_UNITS = {
         'inertia': 'in⁴',
         'section_modulus': 'in³',
         'stress': 'ksi',
+        'force': 'lbf',
+        'moment': 'lbf·in',
+        'ratio': '',
     }
 }
 
@@ -88,14 +106,22 @@ def create_physical_from_input(value, unit_system: str, quantity_type: str) -> P
     
     # Map quantity types to forallpeople unit strings
     unit_map = {
-        'length': 'mm' if unit_system == 'SI' else 'inch',
+        'length': 'm' if unit_system == 'SI' else 'inch',
         'area': 'mm**2' if unit_system == 'SI' else 'inch**2',
         'inertia': 'mm**4' if unit_system == 'SI' else 'inch**4',
         'section_modulus': 'mm**3' if unit_system == 'SI' else 'inch**3',
         'stress': 'MPa' if unit_system == 'SI' else 'ksi',
+        'force': 'N' if unit_system == 'SI' else 'lbf',
+        'moment': 'N*m' if unit_system == 'SI' else 'lbf*in',
+        'ratio': '',
     }
-    
-    unit_str = unit_map.get(quantity_type, 'mm' if unit_system == 'SI' else 'inch')
+
+    unit_str = unit_map.get(quantity_type)
+    if unit_str is None:
+        # Unknown quantity type: keep the numeric value unchanged
+        return value
+    if unit_str == '':
+        return value
     return value * eval(unit_str)
 
 
@@ -245,17 +271,3 @@ def get_section_properties(beam, units: str) -> dict:
         'units': units,
         'input_units': INPUT_UNITS[units],
     }
-
-
-## Unit conversion configuration for SteelBeam class
-## Used for output conversion from internal Physical objects to display units
-#UNIT_CONVERSION = {
-#    'length': {'imp_factor': 25.4, 'si_unit': 'mm', 'imp_unit': 'in'},
-#    'area': {'imp_factor': 645.16, 'si_unit': 'mm**2', 'imp_unit': 'in**2'},
-#    'inertia': {'imp_factor': 416231.0597, 'si_unit': 'mm**4', 'imp_unit': 'in**4'},
-#    'section_modulus': {'imp_factor': 16387.064, 'si_unit': 'mm**3', 'imp_unit': 'in**3'},
-#    'stress': {'imp_factor': 6.895, 'si_unit': 'MPa', 'imp_unit': 'ksi'},
-#    'force': {'imp_factor': 4.4482216152605, 'si_unit': 'N', 'imp_unit': 'lbf'},
-#    'moment': {'imp_factor': 112.984829018, 'si_unit': 'Nmm', 'imp_unit': 'lbf*in'},
-#    'ratio': {'imp_factor': 1, 'si_unit': '', 'imp_unit': ''},
-#}
