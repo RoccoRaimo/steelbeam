@@ -16,7 +16,7 @@ from handcalcs.decorator import handcalc
 import handcalcs
 handcalcs.set_option("custom_symbols", {"C": ","})
 
-from forallpeople import Physical
+from .units import Quantity as Physical, m, mm, inch, MPa, ksi
 
 import os
 import json
@@ -127,7 +127,7 @@ class SteelBeam:
             -------------------------------------------------------------------
 
             All 'User defined' parameters can be provided as plain numeric values or as
-            unit-aware `Physical` objects. When `units='SI'`, numeric inputs are
+            unit-aware `Quantity` objects. When `units='SI'`, numeric inputs are
             interpreted as **meters** for length and **MPa** for stress. When
             `units='Imperial'`, numeric inputs are interpreted as **inches** for
             length and **ksi** for stress.

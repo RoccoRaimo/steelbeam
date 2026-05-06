@@ -4,12 +4,22 @@ steelbeam - Eng. Rocco Raimo
 A python package for calculation of resistance and stability of steel beams, based on multiple national codes.
 ---
 
-Unit conversion and handling for steelbeam package, using forallpeople library.
+Unit conversion and handling for steelbeam package, using pint.
 """
 
-import forallpeople 
-forallpeople.environment('structural', top_level=True)
-from forallpeople import Physical
+import pint
+
+ureg = pint.UnitRegistry()
+Quantity = pint.Quantity
+Physical = Quantity
+
+m = ureg.m
+mm = ureg.mm
+inch = ureg.inch
+MPa = ureg.MPa
+ksi = ureg.ksi
+N = ureg.N
+lbf = ureg.lbf
 
 # Unit conversion factors from BASE units (m, m², m³, m⁴, Pa) to DISPLAY units
 UNIT_FACTORS = {
@@ -83,9 +93,9 @@ INPUT_UNITS = {
     }
 }
 
-def create_physical_from_input(value, unit_system: str, quantity_type: str) -> Physical:
+def create_physical_from_input(value, unit_system: str, quantity_type: str) -> Quantity:
     """
-    Create a Physical object from user input.
+    Create a pint Quantity object from user input.
     
     Parameters
     ----------
@@ -98,13 +108,12 @@ def create_physical_from_input(value, unit_system: str, quantity_type: str) -> P
     
     Returns
     -------
-    Physical
-        Physical object with proper units
+    Quantity
+        Quantity object with proper units
     """
-    if isinstance(value, Physical):
+    if isinstance(value, Quantity):
         return value
     
-    # Map quantity types to forallpeople unit strings
     unit_map = {
         'length': 'm' if unit_system == 'SI' else 'inch',
         'area': 'mm**2' if unit_system == 'SI' else 'inch**2',
@@ -118,14 +127,37 @@ def create_physical_from_input(value, unit_system: str, quantity_type: str) -> P
 
     unit_str = unit_map.get(quantity_type)
     if unit_str is None:
-        # Unknown quantity type: keep the numeric value unchanged
         return value
     if unit_str == '':
         return value
-    return value * eval(unit_str)
+    return ureg.Quantity(value, unit_str)
 
 
-def convert_physical_to_display(value: Physical, quantity_type: str, units: str) -> float:
+DISPLAY_UNITS = {
+    'SI': {
+        'length': 'mm',
+        'area': 'mm**2',
+        'inertia': 'mm**4',
+        'section_modulus': 'mm**3',
+        'stress': 'MPa',
+        'force': 'N',
+        'moment': 'N*m',
+        'ratio': '',
+    },
+    'IMPERIAL': {
+        'length': 'inch',
+        'area': 'inch**2',
+        'inertia': 'inch**4',
+        'section_modulus': 'inch**3',
+        'stress': 'ksi',
+        'force': 'lbf',
+        'moment': 'lbf*in',
+        'ratio': '',
+    }
+}
+
+
+def convert_physical_to_display(value: Quantity, quantity_type: str, units: str) -> float:
     """
     Convert a Physical object to a display value in the specified unit system.
     
@@ -150,14 +182,17 @@ def convert_physical_to_display(value: Physical, quantity_type: str, units: str)
     if units not in ('SI', 'IMPERIAL'):
         raise ValueError("units must be either 'SI' or 'IMPERIAL'")
     
-    if not isinstance(value, Physical):
-        # If it's already a number, return as-is (shouldn't happen with proper init)
+    if not isinstance(value, Quantity):
         return float(value)
-    
-    base_value = value.value  # Always in base SI units
-    factor = UNIT_FACTORS[units].get(quantity_type, 1.0)
-    
-    return base_value * factor
+
+    target_unit = DISPLAY_UNITS[units].get(quantity_type)
+    if not target_unit:
+        return float(value.magnitude)
+
+    if target_unit == '':
+        return float(value.magnitude)
+
+    return float(value.to(target_unit).magnitude)
 
 
 def get_unit_label(quantity_type: str, units: str) -> str:
@@ -247,7 +282,7 @@ def get_section_properties(beam, units: str) -> dict:
         val = getattr(beam, attr)
         if val is None:
             return None
-        if isinstance(val, Physical):
+        if isinstance(val, Quantity):
             quantity_type = attr_to_quantity.get(attr, attr)
             return convert_physical_to_display(val, quantity_type, units)
         return val
