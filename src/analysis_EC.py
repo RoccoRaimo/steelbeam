@@ -25,19 +25,10 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
     gamma_m2 = self._partial_factors.get('gamma_m2', 1.25)
 
     if render==False:
-        n_pl = self.section_area * self.f_yk / gamma_m0
-        n_u = 0.9 * a_net * self.f_yk / gamma_m2
-        normal_force_tension = min(n_pl, n_u)
-        
-        # DEBUG COMPLETO
-        print(f"[1] Dentro funzione - Tipo: {type(normal_force_tension)}")
-        print(f"[2] Dentro funzione - Valore: {normal_force_tension}")
-        print(f"[3] Dentro funzione - Ha units? {hasattr(normal_force_tension, 'units')}")
-        
-        result = normal_force_tension
-        print(f"[4] Prima del return - Tipo: {type(result)}")
-        
-        return result  # ← Ritorna qui
+        n_pl = (self.section_area * self.f_yk / gamma_m0).to_preferred(preferred_units)
+        n_u = (0.9 * a_net * self.f_yk / gamma_m2).to_preferred(preferred_units)
+        normal_force_tension = (min(n_pl, n_u)).to_preferred(preferred_units)
+        return normal_force_tension
         
     elif render==True:
             @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)

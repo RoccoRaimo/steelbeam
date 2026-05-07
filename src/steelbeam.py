@@ -271,10 +271,24 @@ class SteelBeam:
         """Return the unit label string for display purposes"""
         return units.get_unit_label(quantity_type, self.units if display_units is None else display_units)
 
-    def _convert_to_units(self, value, quantity_type: str, display_units: str = None) -> float:
+    def _convert_to_units(self, value, quantity_type: str, display_units: str = None) -> Physical:
         """Convert a value to the display unit system."""
+        if value is None:
+            return value
+        
         target_units = self.units if display_units is None else display_units.upper()
-        return units.convert_physical_to_display(value, quantity_type, target_units)
+        
+        # Se è già un Quantity, converti le unità ma mantieni l'oggetto Quantity
+        if isinstance(value, Physical):
+            return units.convert_physical_to_display(value, quantity_type, target_units)
+        
+        # Se è un numero semplice, crea un Quantity prima di convertire
+        if isinstance(value, (int, float)):
+            # Qui dovresti sapere quale unità associare al quantity_type
+            # Per ora, restituisci il valore originale
+            return value
+        
+        return value
 
     def _analysis_quantity_type(self, method_name: str) -> str | None:
         """Map analysis method names to quantity types."""
@@ -291,8 +305,12 @@ class SteelBeam:
         """Convert analysis output to display units."""
         if quantity_type is None or value is None:
             return value
-        if isinstance(value, (Physical, int, float)):
+        
+        # Se è già un Quantity, lascialo così (o converti le unità ma mantieni Quantity)
+        if isinstance(value, Physical):
             return self._convert_to_units(value, quantity_type, self.units)
+        
+        # Se è un numero semplice, restituiscilo così com'è
         return value
 
     def get_section_properties(self, output_units: str = None) -> dict:
@@ -408,8 +426,17 @@ class SteelBeam:
                     def make_wrapper(bound, q_type):
                         @functools.wraps(bound)
                         def wrapper(*args, **kwargs):
+                            # 🔥 MODIFICA CRITICA:
+                            # Se l'utente ha chiesto render=False (o non ha specificato),
+                            # restituiamo il risultato RAW (pint.Quantity) SENZA conversione.
+                            # Questo permette di fare calcoli successivi sulle unità.
+                            if not kwargs.get('render', False):
+                                return bound(*args, **kwargs)
+                            
+                            # Se render=True, applichiamo la conversione e il rendering
                             result = bound(*args, **kwargs)
                             return self._convert_analysis_output(result, q_type)
+                        
                         return wrapper
 
                     setattr(self, name, make_wrapper(bound_method, quantity_type))
