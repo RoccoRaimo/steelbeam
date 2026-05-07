@@ -12,11 +12,10 @@ from . import analysis_EC
 from . import analysis_AISC
 from . import analysis_NBR
 
-from handcalcs.decorator import handcalc
 import handcalcs
 handcalcs.set_option("custom_symbols", {"C": ","})
 
-from .units import Quantity as Physical, m, mm, inch, MPa, ksi
+from .units import Quantity, m, mm, inch, MPa, ksi
 
 import os
 import json
@@ -151,7 +150,7 @@ class SteelBeam:
         if self.units not in ('SI', 'IMPERIAL'):
             raise ValueError("units must be either 'SI' or 'Imperial'")
 
-        if isinstance(length, Physical):
+        if isinstance(length, Quantity):
             self.length = length
         elif self.units == 'SI':
             # Input assumed in meters, convert to mm for internal storage
@@ -160,14 +159,14 @@ class SteelBeam:
             # Input assumed in inches, convert to mm for internal storage
             self.length = length * inch
 
-        if isinstance(elastic_modulus, Physical):
+        if isinstance(elastic_modulus, Quantity):
             self.elastic_modulus = elastic_modulus
         elif self.units == 'SI':
             self.elastic_modulus = elastic_modulus * MPa
         else:  # IMPERIAL
             self.elastic_modulus = elastic_modulus * ksi
 
-        if isinstance(f_yk, Physical):
+        if isinstance(f_yk, Quantity):
             self.f_yk = f_yk
         elif self.units == 'SI':
             self.f_yk = f_yk * MPa
@@ -185,7 +184,7 @@ class SteelBeam:
             """
             if value is None:
                 return None
-            if isinstance(value, Physical):
+            if isinstance(value, Quantity):
                 return value
             if self.units == 'SI':
                 return value * si_unit
@@ -254,9 +253,6 @@ class SteelBeam:
         except KeyError as e:
             raise ValueError(f"Missing key '{e}' in database entry for profile '{self.profile}'. Check the database structure.")
         
- 
-        # else:
-        #    raise ValueError(f"""The profile is not present in the current database. Please use 'User defined'!""")
 
     @property
     def input_units(self) -> dict:
@@ -271,21 +267,19 @@ class SteelBeam:
         """Return the unit label string for display purposes"""
         return units.get_unit_label(quantity_type, self.units if display_units is None else display_units)
 
-    def _convert_to_units(self, value, quantity_type: str, display_units: str = None) -> Physical:
+    def _convert_to_units(self, value, quantity_type: str, display_units: str = None):
         """Convert a value to the display unit system."""
         if value is None:
             return value
         
         target_units = self.units if display_units is None else display_units.upper()
         
-        # Se è già un Quantity, converti le unità ma mantieni l'oggetto Quantity
-        if isinstance(value, Physical):
-            return units.convert_physical_to_display(value, quantity_type, target_units)
+        # If it is already a Quantity, convert the units but keep the Quantity object
+        if isinstance(value, Quantity):
+            return units.convert_Quantity_to_display(value, quantity_type, target_units)
         
-        # Se è un numero semplice, crea un Quantity prima di convertire
+        # If it is a simple number, create a Quantity before converting
         if isinstance(value, (int, float)):
-            # Qui dovresti sapere quale unità associare al quantity_type
-            # Per ora, restituisci il valore originale
             return value
         
         return value
@@ -306,11 +300,9 @@ class SteelBeam:
         if quantity_type is None or value is None:
             return value
         
-        # Se è già un Quantity, lascialo così (o converti le unità ma mantieni Quantity)
-        if isinstance(value, Physical):
+        if isinstance(value, Quantity):
             return self._convert_to_units(value, quantity_type, self.units)
         
-        # Se è un numero semplice, restituiscilo così com'è
         return value
 
     def get_section_properties(self, output_units: str = None) -> dict:
@@ -426,14 +418,13 @@ class SteelBeam:
                     def make_wrapper(bound, q_type):
                         @functools.wraps(bound)
                         def wrapper(*args, **kwargs):
-                            # 🔥 MODIFICA CRITICA:
-                            # Se l'utente ha chiesto render=False (o non ha specificato),
-                            # restituiamo il risultato RAW (pint.Quantity) SENZA conversione.
-                            # Questo permette di fare calcoli successivi sulle unità.
+                            # If the user has set `render=False` (or has not specified a value),
+                            # return the RAW result (pint.Quantity) WITHOUT conversion.
+                            # This allows subsequent calculations to be performed on the units.
                             if not kwargs.get('render', False):
                                 return bound(*args, **kwargs)
                             
-                            # Se render=True, applichiamo la conversione e il rendering
+                            # If render=True, apply the conversion and rendering
                             result = bound(*args, **kwargs)
                             return self._convert_analysis_output(result, q_type)
                         

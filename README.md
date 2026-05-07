@@ -65,7 +65,7 @@ You can select an existing standard profile from the provided databases (current
 
 - `numpy`, `scipy` — numerical computations
 - `handcalcs` — LaTeX formula rendering
-- `forallpeople` — unit handling
+- `pint` — unit handling
 
 ## Desktop Application (Coming Soon)
 

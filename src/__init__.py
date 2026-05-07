@@ -25,7 +25,7 @@ The possible import options to use units are:
 """
 
 from .steelbeam import SteelBeam, profile_type, profile_list, database, get_profiles_by_type
-from .units import (ureg, Quantity as Physical, m, mm, inch, MPa, ksi,)
+from .units import (ureg, Quantity, m, mm, inch, MPa, ksi,)
 import handcalcs
 
 __all__ = [
@@ -34,7 +34,7 @@ __all__ = [
     'profile_list',
     'database',
     'get_profiles_by_type',
-    'Physical',
+    'Quantity',
     'ureg',
     'm','mm','inch',
     'MPa', 'ksi',
@@ -44,7 +44,7 @@ __all__ = [
 
 # Configure Pint for compact and scientific formatting (~#P)
 # "~" = abbreviated (e.g. "m" instead of "meter"), "#" = scientific notation, "P" = pretty
-ureg.formatter.default_format = "~"
+ureg.formatter.default_format = "~#P"
 # Configure handcalcs for your preferred LaTeX formatting (~L)
 handcalcs.set_option("preferred_string_formatter", "~L")
 

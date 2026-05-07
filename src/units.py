@@ -22,7 +22,6 @@ preferred_units = [
 ureg.default_preferred_units = preferred_units
 
 Quantity = pint.Quantity
-Physical = Quantity
 
 
 
@@ -106,7 +105,7 @@ INPUT_UNITS = {
     }
 }
 
-def create_physical_from_input(value, unit_system: str, quantity_type: str) -> Quantity:
+def create_quantity_from_input(value, unit_system: str, quantity_type: str) -> Quantity:
     """
     Create a pint Quantity object from user input.
     
@@ -170,14 +169,14 @@ DISPLAY_UNITS = {
 }
 
 
-def convert_physical_to_display(value: Quantity, quantity_type: str, units: str) -> float:
+def convert_quantity_to_display(value: Quantity, quantity_type: str, units: str) -> float:
     """
-    Convert a Physical object to a display value in the specified unit system.
+    Convert a Quantity object to a display value in the specified unit system.
     
     Parameters
     ----------
-    value : Physical
-        The Physical object (stored in base SI units internally)
+    value : Quantity
+        The Quantity object (stored in base SI units internally)
     quantity_type : str
         Type of quantity ('length', 'area', 'stress', etc.)
     units : str
@@ -297,7 +296,7 @@ def get_section_properties(beam, units: str) -> dict:
             return None
         if isinstance(val, Quantity):
             quantity_type = attr_to_quantity.get(attr, attr)
-            return convert_physical_to_display(val, quantity_type, units)
+            return convert_quantity_to_display(val, quantity_type, units)
         return val
 
     return {

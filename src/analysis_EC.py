@@ -40,25 +40,6 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
                 N_tCRd = min(N_plCRd, N_uCRd); N_tCRd = (min(N_plCRd, N_uCRd)).to_preferred(preferred_units)
             return render_instance(self.section_area, self.f_yk, a_net)
         
-        
-        #try:
-        #    @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-        #    def render_instance(A, f_yk, A_net):
-        #        """
-        #        """
-        #        N_plCRd = (A * f_yk / gamma_m0).prefix(prefix)
-        #        N_uCRd = (0.9 * A_net * f_yk / gamma_m2).prefix(prefix)
-        #        N_tCRd = min(N_plCRd, N_uCRd)
-        #    return render_instance(self.section_area, self.f_yk, a_net)
-        #except:
-        #    @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-        #    def render_instance(A, f_yk, A_net):
-        #        """
-        #        """
-        #        N_plCRd = A * f_yk / gamma_m0
-        #        N_uCRd = 0.9 * A_net * f_yk / gamma_m2
-        #        N_tCRd = min(N_plCRd, N_uCRd)
-        #    return render_instance(self.section_area, self.f_yk, a_net)
 
 def normal_force_compression(self, render = False, prefix: str = '', precision: int = 3):
     """
