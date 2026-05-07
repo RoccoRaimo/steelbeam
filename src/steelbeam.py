@@ -16,6 +16,8 @@ import handcalcs
 handcalcs.set_option("custom_symbols", {"C": ","})
 
 from .units import Quantity, m, mm, inch, MPa, ksi
+from .units import convert_quantity_to_display
+from .units import DISPLAY_UNITS
 
 import os
 import json
@@ -150,58 +152,55 @@ class SteelBeam:
         if self.units not in ('SI', 'IMPERIAL'):
             raise ValueError("units must be either 'SI' or 'Imperial'")
 
-        if isinstance(length, Quantity):
-            self.length = length
-        elif self.units == 'SI':
-            # Input assumed in meters, convert to mm for internal storage
-            self.length = length * m
-        else:  # IMPERIAL
-            # Input assumed in inches, convert to mm for internal storage
-            self.length = length * inch
-
-        if isinstance(elastic_modulus, Quantity):
-            self.elastic_modulus = elastic_modulus
-        elif self.units == 'SI':
-            self.elastic_modulus = elastic_modulus * MPa
-        else:  # IMPERIAL
-            self.elastic_modulus = elastic_modulus * ksi
-
-        if isinstance(f_yk, Quantity):
-            self.f_yk = f_yk
-        elif self.units == 'SI':
-            self.f_yk = f_yk * MPa
-        else:  # IMPERIAL
-            self.f_yk = f_yk * ksi
-
+        # Memorizza internamente in SI (con prefisso _)
+        self._units = self.units
+        
         ni = 0.3
-        self.shear_modulus = self.elastic_modulus / (2*(1+ni))
-
-        self.profile = profile
-
-        def _unit_value(value, si_unit, imperial_factor):
-            """
-            Function to interrogate the input values and turn them into an SI based values
-            """
+        
+        # Helper per normalizzare a SI
+        def _normalize_to_si(value, si_unit, imperial_factor, quantity_type):
+            """Normalizza un valore a unit SI base"""
             if value is None:
                 return None
             if isinstance(value, Quantity):
-                return value
+                # Converti all'unit SI base appropriata
+                if quantity_type == 'stress':
+                    return value.to(MPa)
+                elif quantity_type == 'length':
+                    return value.to(mm)
+                elif quantity_type == 'area':
+                    return value.to(mm**2)
+                elif quantity_type == 'inertia':
+                    return value.to(mm**4)
+                elif quantity_type == 'section_modulus':
+                    return value.to(mm**3)
+                else:
+                    return value
             if self.units == 'SI':
                 return value * si_unit
             return value * imperial_factor * si_unit
 
-        self.section_area = _unit_value(section_area, mm**2, 645.16)
-        self.section_area_shear_y = _unit_value(section_area_shear_y, mm**2, 645.16)
-        self.section_area_shear_z = _unit_value(section_area_shear_z, mm**2, 645.16)
-        self.section_inertia_y = _unit_value(section_inertia_y, mm**4, 416231.0597)
-        self.section_inertia_z = _unit_value(section_inertia_z, mm**4, 416231.0597)
-        self.section_inertia_torsional = _unit_value(section_inertia_torsional, mm**4, 416231.0597)
-        self.section_w_pl_y = _unit_value(section_w_pl_y, mm**3, 16387.064)
-        self.section_w_pl_z = _unit_value(section_w_pl_z, mm**3, 16387.064)
-        self.h_w = _unit_value(h_w, mm, 25.4)
-        self.t_w = _unit_value(t_w, mm, 25.4)
-        self.b = _unit_value(b, mm, 25.4)
-        self.t_f = _unit_value(t_f, mm, 25.4)
+        # Normalizza e memorizza tutti gli attributi
+        self._length = _normalize_to_si(length, m, 1.0, 'length')
+        self._elastic_modulus = _normalize_to_si(elastic_modulus, MPa, 1.0, 'stress')
+        self._f_yk = _normalize_to_si(f_yk, MPa, 1.0, 'stress')
+        self._shear_modulus = self._elastic_modulus / (2*(1+ni))
+        
+        self._section_area = _normalize_to_si(section_area, mm**2, 645.16, 'area')
+        self._section_area_shear_y = _normalize_to_si(section_area_shear_y, mm**2, 645.16, 'area')
+        self._section_area_shear_z = _normalize_to_si(section_area_shear_z, mm**2, 645.16, 'area')
+        self._section_inertia_y = _normalize_to_si(section_inertia_y, mm**4, 416231.0597, 'inertia')
+        self._section_inertia_z = _normalize_to_si(section_inertia_z, mm**4, 416231.0597, 'inertia')
+        self._section_inertia_torsional = _normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
+        self._section_w_pl_y = _normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
+        self._section_w_pl_z = _normalize_to_si(section_w_pl_z, mm**3, 16387.064, 'section_modulus')
+        self._h_w = _normalize_to_si(h_w, mm, 25.4, 'length')
+        self._t_w = _normalize_to_si(t_w, mm, 25.4, 'length')
+        self._b = _normalize_to_si(b, mm, 25.4, 'length')
+        self._t_f = _normalize_to_si(t_f, mm, 25.4, 'length')
+        
+        self.profile = profile
+        
         if self.profile == 'User defined':
             return
         # Preliminary check
@@ -219,40 +218,110 @@ class SteelBeam:
         db_entry = database[target_value_type][self.profile]
         
         try:
-            self.section_area = float(db_entry['A']) * mm**2
-            self.section_area_shear_y = float(db_entry.get('Avy', db_entry.get('Avz', 0))) * mm**2
-            self.section_area_shear_z = float(db_entry.get('Avz', 0)) * mm**2
-            self.section_inertia_y = float(db_entry['Iy']) * mm**4
-            self.section_inertia_z = float(db_entry.get('Iz', db_entry.get('Iy', 0))) * mm**4
-            self.section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
-            self.section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
-            self.section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
+            self._section_area = float(db_entry['A']) * mm**2
+            self._section_area_shear_y = float(db_entry.get('Avy', db_entry.get('Avz', 0))) * mm**2
+            self._section_area_shear_z = float(db_entry.get('Avz', 0)) * mm**2
+            self._section_inertia_y = float(db_entry['Iy']) * mm**4
+            self._section_inertia_z = float(db_entry.get('Iz', db_entry.get('Iy', 0))) * mm**4
+            self._section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
+            self._section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
+            self._section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
             
             # Gestione dimensioni specifiche
             if target_value_type == 'CHS_SECTION':
-                self.h_w = float(db_entry['OD']) * mm
-                self.t_w = float(db_entry['TDES']) * mm
-                self.b = float(db_entry['OD']) * mm
-                self.t_f = float(db_entry['TDES']) * mm
+                self._h_w = float(db_entry['OD']) * mm
+                self._t_w = float(db_entry['TDES']) * mm
+                self._b = float(db_entry['OD']) * mm
+                self._t_f = float(db_entry['TDES']) * mm
             elif target_value_type == 'RHS_SECTION':
                 # Assicurati che queste chiavi esistano nel tuo database RHS
-                self.h_w = float(db_entry['Htot']) * mm
-                self.t_w = float(db_entry['tw']) * mm
-                self.b = float(db_entry['b']) * mm
-                self.t_f = float(db_entry['tf']) * mm
+                self._h_w = float(db_entry['Htot']) * mm
+                self._t_w = float(db_entry['tw']) * mm
+                self._b = float(db_entry['b']) * mm
+                self._t_f = float(db_entry['tf']) * mm
             else:
                 # I-sections e altri
-                self.h_w = (float(db_entry['h']) - 2 * float(db_entry['tf'])) * mm
-                self.t_w = float(db_entry['tw']) * mm
+                self._h_w = (float(db_entry['h']) - 2 * float(db_entry['tf'])) * mm
+                self._t_w = float(db_entry['tw']) * mm
                 if target_value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
-                    self.b = float(db_entry['b']) * mm
+                    self._b = float(db_entry['b']) * mm
                 else:
-                    self.b = float(db_entry['bf']) * mm
-                self.t_f = float(db_entry['tf']) * mm
+                    self._b = float(db_entry['bf']) * mm
+                self._t_f = float(db_entry['tf']) * mm
                 
         except KeyError as e:
             raise ValueError(f"Missing key '{e}' in database entry for profile '{self.profile}'. Check the database structure.")
         
+    def __getattr__(self, name):
+        """
+        Intercept attribute access for automatic unit conversion.
+        
+        Returns a Quantity object in the beam's display units, preserving
+        the ability to perform further calculations.
+        """
+        # Evita loop infinito per attributi privati
+        if name.startswith('_'):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        
+        # Controlla se è un attributo che deve essere convertito
+        if name in self.ATTR_TO_QUANTITY_TYPE:
+            private_attr = f'_{name}'
+            value = object.__getattribute__(self, private_attr)
+            
+            if value is None:
+                return None
+            
+            if isinstance(value, Quantity):
+                quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
+                
+                # Converti il Quantity alle unità di display (mantenendo l'oggetto Quantity)
+                target_unit_str = DISPLAY_UNITS[self.units].get(quantity_type)
+                if target_unit_str and target_unit_str != '':
+                    try:
+                        return value.to(target_unit_str)
+                    except pint.DimensionalityError:
+                        # Fallback: se la conversione fallisce, restituisci il valore originale
+                        return value
+                return value
+            
+            return value
+        
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+    
+    def __setattr__(self, name, value):
+        """
+        Intercept attribute setting for automatic normalization to SI.
+        
+        When setting attributes like beam.elastic_modulus = 30*ksi,
+        this method normalizes the value to SI units for internal storage.
+        """
+        # Per attributi privati e 'units', imposta normalmente
+        if name.startswith('_') or name == 'units':
+            object.__setattr__(self, name, value)
+            return
+        
+        # Per attributi mappati, normalizza a SI
+        if name in self.ATTR_TO_QUANTITY_TYPE:
+            quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
+            private_attr = f'_{name}'
+            
+            if isinstance(value, Quantity):
+                # Normalizza all'unità SI base appropriata
+                if quantity_type == 'stress':
+                    value = value.to(MPa)
+                elif quantity_type == 'length':
+                    value = value.to(mm)
+                elif quantity_type == 'area':
+                    value = value.to(mm**2)
+                elif quantity_type == 'inertia':
+                    value = value.to(mm**4)
+                elif quantity_type == 'section_modulus':
+                    value = value.to(mm**3)
+            
+            object.__setattr__(self, private_attr, value)
+        else:
+            # Per altri attributi (es. profile, _analysis_methods, etc.), imposta normalmente
+            object.__setattr__(self, name, value)
 
     @property
     def input_units(self) -> dict:
@@ -315,11 +384,8 @@ class SteelBeam:
         def fmt(val):
             if val is None:
                 return "None"
-            # Check if the value is effectively an integer
             if isinstance(val, float) and val.is_integer():
                 return f"{int(val)}"
-            # If it's a float, format with up to 3 decimal places, stripping trailing zeros
-            # This avoids scientific notation
             formatted = f"{val:.3f}".rstrip('0').rstrip('.')
             return formatted
         
@@ -340,6 +406,29 @@ class SteelBeam:
             f"t_f={fmt(props['t_f'])} {self._unit_label('length')})"
         )
 
+    # Attribute mapping -> quantity_type for automatic conversion
+    ATTR_TO_QUANTITY_TYPE = {
+        'elastic_modulus': 'stress',
+        'f_yk': 'stress',
+        'shear_modulus': 'stress',
+        'length': 'length',
+        'section_area': 'area',
+        'section_area_shear_y': 'area',
+        'section_area_shear_z': 'area',
+        'section_inertia_y': 'inertia',
+        'section_inertia_z': 'inertia',
+        'section_inertia_torsional': 'inertia',
+        'section_w_pl_y': 'section_modulus',
+        'section_w_pl_z': 'section_modulus',
+        'h_w': 'length',
+        't_w': 'length',
+        'b': 'length',
+        't_f': 'length',
+    }
+
+
+
+    # Define default partial factors for the national codes
     _default_partial_factors = {
         'EC': {
             'gamma_m0': 1.05,
