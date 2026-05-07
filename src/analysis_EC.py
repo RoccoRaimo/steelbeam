@@ -13,7 +13,7 @@ from math import pi, sqrt
 
 # ----- RESISTANCE
 
-def normal_force_tension(self, a_net=None, render=False, prefix='', precision=3):
+def normal_force_tension(self, a_net=None, render=False, preferred_units=None, precision=3):
     """
 
     EC3 1993-1-1:2005 - § 6.2.3
@@ -28,27 +28,46 @@ def normal_force_tension(self, a_net=None, render=False, prefix='', precision=3)
         n_pl = self.section_area * self.f_yk / gamma_m0
         n_u = 0.9 * a_net * self.f_yk / gamma_m2
         normal_force_tension = min(n_pl, n_u)
-        return normal_force_tension
+        
+        # DEBUG COMPLETO
+        print(f"[1] Dentro funzione - Tipo: {type(normal_force_tension)}")
+        print(f"[2] Dentro funzione - Valore: {normal_force_tension}")
+        print(f"[3] Dentro funzione - Ha units? {hasattr(normal_force_tension, 'units')}")
+        
+        result = normal_force_tension
+        print(f"[4] Prima del return - Tipo: {type(result)}")
+        
+        return result  # ← Ritorna qui
         
     elif render==True:
-        try:
             @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
             def render_instance(A, f_yk, A_net):
                 """
                 """
-                N_plCRd = (A * f_yk / gamma_m0).prefix(prefix)
-                N_uCRd = (0.9 * A_net * f_yk / gamma_m2).prefix(prefix)
-                N_tCRd = min(N_plCRd, N_uCRd)
+                N_plCRd = A * f_yk / gamma_m0; N_plCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
+                N_uCRd = 0.9 * A_net * f_yk / gamma_m2; N_uCRd = (0.9 * A_net * f_yk / gamma_m2).to_preferred(preferred_units)
+                N_tCRd = min(N_plCRd, N_uCRd); N_tCRd = (min(N_plCRd, N_uCRd)).to_preferred(preferred_units)
             return render_instance(self.section_area, self.f_yk, a_net)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk, A_net):
-                """
-                """
-                N_plCRd = A * f_yk / gamma_m0
-                N_uCRd = 0.9 * A_net * f_yk / gamma_m2
-                N_tCRd = min(N_plCRd, N_uCRd)
-            return render_instance(self.section_area, self.f_yk, a_net)
+        
+        
+        #try:
+        #    @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        #    def render_instance(A, f_yk, A_net):
+        #        """
+        #        """
+        #        N_plCRd = (A * f_yk / gamma_m0).prefix(prefix)
+        #        N_uCRd = (0.9 * A_net * f_yk / gamma_m2).prefix(prefix)
+        #        N_tCRd = min(N_plCRd, N_uCRd)
+        #    return render_instance(self.section_area, self.f_yk, a_net)
+        #except:
+        #    @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        #    def render_instance(A, f_yk, A_net):
+        #        """
+        #        """
+        #        N_plCRd = A * f_yk / gamma_m0
+        #        N_uCRd = 0.9 * A_net * f_yk / gamma_m2
+        #        N_tCRd = min(N_plCRd, N_uCRd)
+        #    return render_instance(self.section_area, self.f_yk, a_net)
 
 def normal_force_compression(self, render = False, prefix: str = '', precision: int = 3):
     """

@@ -9,9 +9,22 @@ Unit conversion and handling for steelbeam package, using pint.
 
 import pint
 
-ureg = pint.UnitRegistry()
+ureg = pint.UnitRegistry(autoconvert_to_preferred = True)
+preferred_units = [
+    ureg.mm,
+    ureg.kg,
+    ureg.s, 
+    ureg.K,
+    ureg.kN,
+    ureg.W,
+    ureg.MPa
+]
+ureg.default_preferred_units = preferred_units
+
 Quantity = pint.Quantity
 Physical = Quantity
+
+
 
 m = ureg.m
 mm = ureg.mm
