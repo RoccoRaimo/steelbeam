@@ -41,6 +41,12 @@ You can select an existing standard profile from the provided databases (current
 
 ![How it works](docs/images/image1.gif)
 
+## Docs
+
+You can use the following documentation for initial understanding of library's capabilities:
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoccoRaimo/steelbeam)
+
 ## List of features
 
 - List of functions already implemented for national codes design formulas:
