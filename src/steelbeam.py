@@ -364,15 +364,49 @@ class SteelBeam:
             return 'ratio'
         return None
 
-    def _convert_analysis_output(self, value, quantity_type: str):
-        """Convert analysis output to display units."""
+    def _convert_analysis_output(self, value, quantity_type: str, preferred_units: str = None):
+        """
+        Convert analysis output to the desired unit system.
+        
+        Parameters
+        ----------
+        value : Quantity or float
+            The calculated result
+        quantity_type : str
+            Type of quantity ('force', 'moment', 'stress', etc.)
+        preferred_units : str, optional
+            Target unit system ('SI', 'IMPERIAL', or None to use self.units)
+        
+        Returns
+        -------
+        Quantity
+            The result converted to the target unit system (preserving Quantity type)
+        """
         if quantity_type is None or value is None:
+            return None
+        
+        # Se preferred_units non è specificato, usa le unità dell'istanza
+        target_units = preferred_units.upper() if preferred_units else self.units
+        
+        if target_units not in ('SI', 'IMPERIAL'):
+            raise ValueError(f"Invalid unit system: {target_units}. Must be 'SI' or 'IMPERIAL'.")
+        
+        # Se il valore non è un Quantity, restituiscilo così com'è
+        if not isinstance(value, Quantity):
             return value
         
-        if isinstance(value, Quantity):
-            return self._convert_to_units(value, quantity_type, self.units)
+        # Mappa quantity_type alle unità target
+        target_unit_str = DISPLAY_UNITS[target_units].get(quantity_type)
         
-        return value
+        if not target_unit_str or target_unit_str == '':
+            # Se non c'è una conversione definita, restituisci il risultato originale
+            return value
+        
+        try:
+            return value.to(target_unit_str)
+        except pint.DimensionalityError:
+            # Se la conversione fallisce, restituisci il risultato originale
+            return value
 
     def get_section_properties(self, output_units: str = None) -> dict:
         target_units = self.units if output_units is None else output_units.upper()
@@ -515,7 +549,9 @@ class SteelBeam:
                             
                             # If render=True, apply the conversion and rendering
                             result = bound(*args, **kwargs)
-                            return self._convert_analysis_output(result, q_type)
+                            # Extract preferred_units from kwargs (defaults to None)
+                            preferred_units = kwargs.get('preferred_units', None)
+                            return self._convert_analysis_output(result, q_type, preferred_units)
                         
                         return wrapper
 
