@@ -13,15 +13,32 @@ ureg = pint.UnitRegistry(autoconvert_to_preferred = True)
 preferred_units = [
     ureg.mm,
     ureg.kg,
-    ureg.s, 
+    ureg.s,
     ureg.K,
     ureg.kN,
     ureg.W,
     ureg.MPa
 ]
+imperial_preferred_units = [
+    ureg.inch,
+    ureg.lbf,
+    ureg.s,
+    ureg.K,
+    ureg.ksi,
+    ureg.lbf * ureg.inch,
+]
 ureg.default_preferred_units = preferred_units
 
 Quantity = pint.Quantity
+
+
+def get_preferred_units(unit_system: str):
+    unit_system = unit_system.upper()
+    if unit_system == 'SI':
+        return preferred_units
+    if unit_system == 'IMPERIAL':
+        return imperial_preferred_units
+    raise ValueError("unit_system must be either 'SI' or 'IMPERIAL'")
 
 
 

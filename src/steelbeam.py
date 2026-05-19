@@ -23,6 +23,8 @@ import os
 import json
 import types
 import functools
+import inspect
+import pint
 
 
 # Import the database of steel profiles
@@ -345,7 +347,7 @@ class SteelBeam:
         
         # If it is already a Quantity, convert the units but keep the Quantity object
         if isinstance(value, Quantity):
-            return units.convert_Quantity_to_display(value, quantity_type, target_units)
+            return units.convert_quantity_to_display(value, quantity_type, target_units)
         
         # If it is a simple number, create a Quantity before converting
         if isinstance(value, (int, float)):
@@ -541,18 +543,29 @@ class SteelBeam:
                     def make_wrapper(bound, q_type):
                         @functools.wraps(bound)
                         def wrapper(*args, **kwargs):
-                            # If the user has set `render=False` (or has not specified a value),
-                            # return the RAW result (pint.Quantity) WITHOUT conversion.
-                            # This allows subsequent calculations to be performed on the units.
-                            if not kwargs.get('render', False):
+                            # Bind args and kwargs to obtain the actual render flag.
+                            signature = inspect.signature(bound)
+                            bound_args = signature.bind_partial(*args, **kwargs)
+
+                            preferred_units_for_result = self.units
+                            if 'preferred_units' in signature.parameters:
+                                preferred = bound_args.arguments.get('preferred_units', None)
+                                if preferred is None:
+                                    kwargs['preferred_units'] = units.get_preferred_units(self.units)
+                                elif isinstance(preferred, str):
+                                    preferred_units_for_result = preferred.upper()
+                                    kwargs['preferred_units'] = units.get_preferred_units(preferred_units_for_result)
+                                else:
+                                    # Preserve custom preferred unit lists for pint.to_preferred.
+                                    pass
+
+                            render = bound_args.arguments.get('render', False)
+                            if not render:
                                 return bound(*args, **kwargs)
-                            
-                            # If render=True, apply the conversion and rendering
+
                             result = bound(*args, **kwargs)
-                            # Extract preferred_units from kwargs (defaults to None)
-                            preferred_units = kwargs.get('preferred_units', None)
-                            return self._convert_analysis_output(result, q_type, preferred_units)
-                        
+                            return self._convert_analysis_output(result, q_type, preferred_units_for_result)
+
                         return wrapper
 
                     setattr(self, name, make_wrapper(bound_method, quantity_type))
