@@ -31,17 +31,17 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
         return normal_force_tension
         
     elif render==True:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk, A_net):
-                """
-                """
-                N_plCRd = A * f_yk / gamma_m0; N_plCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
-                N_uCRd = 0.9 * A_net * f_yk / gamma_m2; N_uCRd = (0.9 * A_net * f_yk / gamma_m2).to_preferred(preferred_units)
-                N_tCRd = min(N_plCRd, N_uCRd); N_tCRd = (min(N_plCRd, N_uCRd)).to_preferred(preferred_units)
-            return render_instance(self.section_area, self.f_yk, a_net)
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(A, f_yk, A_net):
+            """
+            """
+            N_plCRd = A * f_yk / gamma_m0; N_plCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
+            N_uCRd = 0.9 * A_net * f_yk / gamma_m2; N_uCRd = (0.9 * A_net * f_yk / gamma_m2).to_preferred(preferred_units)
+            N_tCRd = min(N_plCRd, N_uCRd); N_tCRd = (min(N_plCRd, N_uCRd)).to_preferred(preferred_units)
+        return render_instance(self.section_area, self.f_yk, a_net)
         
 
-def normal_force_compression(self, render = False, prefix: str = '', precision: int = 3):
+def normal_force_compression(self, render = False, preferred_units=None, precision: int = 3):
     """
 
     EC3 1993-1-1:2005 - § 6.2.4
@@ -51,25 +51,17 @@ def normal_force_compression(self, render = False, prefix: str = '', precision: 
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
 
     if render==False:
-        normal_force_compression = self.section_area * self.f_yk / gamma_m0
+        normal_force_compression = (self.section_area * self.f_yk / gamma_m0).to_preferred(preferred_units)
         return normal_force_compression
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk):
-                """
-                """
-                N_cCRd = (A * f_yk / gamma_m0).prefix(prefix)
-            return render_instance(self.section_area, self.f_yk)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk):
-                """
-                """
-                N_cCRd = A * f_yk / gamma_m0
-            return render_instance(self.section_area, self.f_yk)  
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(A, f_yk):
+            """
+            """
+            N_cCRd = A * f_yk / gamma_m0; N_cCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
+        return render_instance(self.section_area, self.f_yk)  
 
-def bending_moment_y(self, render = False, prefix: str = '', precision: int = 3):
+def bending_moment_y(self, render = False, preferred_units=None, precision: int = 3):
     """
     Bending moment around y axis (along z axis)
     EC3 1993-1-1:2005 - § 6.2.5
@@ -78,25 +70,18 @@ def bending_moment_y(self, render = False, prefix: str = '', precision: int = 3)
     """
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     if render==False:
-        bending_moment_y = self.section_w_pl_y * self.f_yk / gamma_m0
+        bending_moment_y = (self.section_w_pl_y * self.f_yk / gamma_m0).to_preferred(preferred_units)
         return bending_moment_y
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(W_plCy, f_yk):
-                """
-                """
-                M_cCRdCy = (W_plCy * f_yk / gamma_m0).prefix(prefix)
-            return render_instance(self.section_w_pl_y, self.f_yk)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(W_plCy, f_yk):
-                """
-                """
-                M_cCRdCy = W_plCy * f_yk / gamma_m0
-            return render_instance(self.section_w_pl_y, self.f_yk)
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(W_plCy, f_yk):
+            """
+            """
+            M_cCRdCy = W_plCy * f_yk / gamma_m0; M_cCRdCy = (W_plCy * f_yk / gamma_m0).to_preferred(preferred_units)
+        return render_instance(self.section_w_pl_y, self.f_yk)
 
-def bending_moment_z(self, render = False, prefix: str = '', precision: int = 3):
+
+def bending_moment_z(self, render = False, preferred_units=None, precision: int = 3):
     """
     Bending moment around z axis (along y axis)
     EC3 1993-1-1:2005 - § 6.2.5
@@ -105,25 +90,17 @@ def bending_moment_z(self, render = False, prefix: str = '', precision: int = 3)
     """
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     if render==False:
-        bending_moment_z = self.section_w_pl_z * self.f_yk / gamma_m0
+        bending_moment_z = (self.section_w_pl_z * self.f_yk / gamma_m0).to_preferred(preferred_units)
         return bending_moment_z
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(W_plCz, f_yk):
-                """
-                """
-                M_cCRdCz = (W_plCz * f_yk / gamma_m0).prefix(prefix)
-            return render_instance(self.section_w_pl_z, self.f_yk)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(W_plCz, f_yk):
-                """
-                """
-                M_cCRdCz = W_plCz * f_yk / gamma_m0
-            return render_instance(self.section_w_pl_z, self.f_yk)    
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(W_plCz, f_yk):
+            """
+            """
+            M_cCRdCz = W_plCz * f_yk / gamma_m0; M_cCRdCz = (W_plCz * f_yk / gamma_m0 ).to_preferred(preferred_units)
+        return render_instance(self.section_w_pl_z, self.f_yk)    
 
-def shear_y(self, render = False, prefix: str = '', precision: int = 3):
+def shear_y(self, render = False, preferred_units=None, precision: int = 3):
     """
 
     EC3 1993-1-1:2005 - § 6.2.6
@@ -131,25 +108,17 @@ def shear_y(self, render = False, prefix: str = '', precision: int = 3):
     """
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     if render==False:
-        shear_y = self.section_area_shear_y * (self.f_yk / sqrt(3)) / gamma_m0
+        shear_y = (self.section_area_shear_y * (self.f_yk / sqrt(3)) / gamma_m0).to_preferred(preferred_units)
         return shear_y
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A_vCy, f_yk):
-                """
-                """
-                V_cCRdCy = (A_vCy * (f_yk / sqrt(3)) / gamma_m0).prefix(prefix)
-            return render_instance(self.section_area_shear_y, self.f_yk)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A_vCy, f_yk):
-                """
-                """
-                V_cCRdCy = A_vCy * (f_yk / sqrt(3)) / gamma_m0
-            return render_instance(self.section_area_shear_y, self.f_yk)            
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(A_vCy, f_yk):
+            """
+            """
+            V_cCRdCy = A_vCy * (f_yk / sqrt(3)) / gamma_m0; V_cCRdCy = (A_vCy * (f_yk / sqrt(3)) / gamma_m0).to_preferred(preferred_units)
+        return render_instance(self.section_area_shear_y, self.f_yk)            
 
-def shear_z(self, render = False, prefix: str = '', precision: int = 3):
+def shear_z(self, render = False, preferred_units=None, precision: int = 3):
     """
     
     EC3 1993-1-1:2005 - § 6.2.6
@@ -157,41 +126,36 @@ def shear_z(self, render = False, prefix: str = '', precision: int = 3):
     """
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     if render==False:
-        shear_z = self.section_area_shear_z * (self.f_yk / sqrt(3)) / gamma_m0
+        shear_z = (self.section_area_shear_z * (self.f_yk / sqrt(3)) / gamma_m0).to_preferred(preferred_units)
         return shear_z
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A_vCz, f_yk):
-                """
-                """
-                V_cCRdCz = (A_vCz * (f_yk / sqrt(3)) / gamma_m0).prefix(prefix)
-            return render_instance(self.section_area_shear_z, self.f_yk)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A_vCz, f_yk):
-                """
-                """
-                V_cCRdCz = A_vCz * (f_yk / sqrt(3)) / gamma_m0
-            return render_instance(self.section_area_shear_z, self.f_yk)            
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(A_vCz, f_yk):
+            """
+            """
+            V_cCRdCz = A_vCz * (f_yk / sqrt(3)) / gamma_m0; V_cCRdCz = (A_vCz * (f_yk / sqrt(3)) / gamma_m0).to_preferred(preferred_units)
+        return render_instance(self.section_area_shear_z, self.f_yk)            
 
 # INTERACTION BETWEEN STRESS CHARACTERISTICS
 
 ## Bending and axial force
-def bending_moment_axial_y(self, render = False, prefix: str = '', precision: int = 3, n_ed: float = 0):
+def bending_moment_axial_y(self, render = False, preferred_units=None, precision: int = 3, n_ed: float = 0):
     """
     Bending moment around y axis (along z axis) with simultaneous axial force
     EC3 1993-1-1:2005 - § 6.2.9
     (ONLY CROSS-SECTIONS IN CLASS 1 OR 2)
 
     """
+    if n_ed == 0:
+        raise ValueError(f"The normal force cannot be 0")
+    
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     n_pl_rd = self.section_area * self.f_yk / gamma_m0
     if render==False:
         # Check for web dimensions (for I-sections)
         web_check = 0.5 * self.h_w * self.t_w * self.f_yk / gamma_m0 if self.h_w is not None and self.t_w is not None else float('inf')
         if n_ed <= 0.25 * n_pl_rd and n_ed <= web_check:
-            bending_moment_y = self.section_w_pl_y * self.f_yk / gamma_m0
+            bending_moment_y = (self.section_w_pl_y * self.f_yk / gamma_m0).to_preferred(preferred_units)
         else:
             # For higher axial forces, the moment capacity is reduced
             # This is a simplified implementation; full interaction should be implemented
@@ -202,39 +166,30 @@ def bending_moment_axial_y(self, render = False, prefix: str = '', precision: in
             bending_moment_y = m_pl_rd_y * k
             if bending_moment_y > m_pl_rd_y:
                 bending_moment_y = m_pl_rd_y
-        return bending_moment_y
+        return (bending_moment_y).to_preferred(preferred_units)
     elif render==True:
         m_pl_rd_y = self.section_w_pl_y * self.f_yk / gamma_m0 
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(N_Ed, N_plCRd, W_plCy, f_yk, A, b, t_f):
-                """
-                """
-                n = N_Ed / N_plCRd
-                a = (A - 2*b*t_f) / A 
-                k =  (1 - n) / (1 - 0.5*a) 
-                M_plCRdCy = (W_plCy * f_yk / gamma_m0).prefix(prefix) 
-                M_NCy = (M_plCRdCy * k).prefix(prefix)
-            return render_instance(n_ed, n_pl_rd, self.section_w_pl_y, self.f_yk, self.section_area, self.b, self.t_f)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(N_Ed, N_plCRd, W_plCy, f_yk, A, b, t_f):
-                """
-                """
-                n = N_Ed / N_plCRd
-                a = (A - 2*b*t_f) / A
-                k =  (1 - n) / (1 - 0.5*a) 
-                M_plCRdCy = W_plCy * f_yk / gamma_m0 
-                M_NCy = M_plCRdCy * k
-            return render_instance(n_ed, n_pl_rd, self.section_w_pl_y, self.f_yk, self.section_area, self.b, self.t_f)
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(N_Ed, N_plCRd, W_plCy, f_yk, A, b, t_f):
+            """
+            """
+            n = N_Ed / N_plCRd
+            a = (A - 2*b*t_f) / A
+            k =  (1 - n) / (1 - 0.5*a) 
+            M_plCRdCy = W_plCy * f_yk / gamma_m0; M_plCRdCy = (W_plCy * f_yk / gamma_m0).to_preferred(preferred_units)
+            M_NCy = M_plCRdCy * k; M_NCy = (M_plCRdCy * k).to_preferred(preferred_units)
+        return render_instance(n_ed, n_pl_rd, self.section_w_pl_y, self.f_yk, self.section_area, self.b, self.t_f)
 
-def bending_moment_axial_z(self, render = False, prefix: str = '', precision: int = 3, n_ed: float = 0):
+def bending_moment_axial_z(self, render = False, preferred_units=None, precision: int = 3, n_ed: float = 0):
     """
     Bending moment around z axis (along y axis) with simultaneous axial force
     EC3 1993-1-1:2005 - § 6.2.9
     (ONLY CROSS-SECTIONS IN CLASS 1 OR 2)
 
     """
+    if n_ed == 0:
+        raise ValueError(f"The normal force cannot be 0")
+
     gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
     n_pl_rd = self.section_area * self.f_yk / gamma_m0
     if render==False:
@@ -253,28 +208,16 @@ def bending_moment_axial_z(self, render = False, prefix: str = '', precision: in
         return bending_moment_z
     elif render==True:
         m_pl_rd_z = self.section_w_pl_y * self.f_yk / gamma_m0 
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(N_Ed, N_plCRd, W_plCz, f_yk, A, b, t_f):
-                """
-                """
-                n = N_Ed / N_plCRd
-                a = (A - 2*b*t_f) / A
-                k =  1 - ((n - a) / (1 - a))**2 
-                M_plCRdCz = (W_plCz * f_yk / gamma_m0).prefix(prefix) 
-                M_NCz = (M_plCRdCz * k).prefix(prefix)
-            return render_instance(n_ed, n_pl_rd, self.section_w_pl_z, self.f_yk, self.section_area, self.b, self.t_f)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(N_Ed, N_plCRd, W_plCz, f_yk, A, b, t_f):
-                """
-                """
-                n = N_Ed / N_plCRd
-                a = (A - 2*b*t_f) / A
-                k =  1 - ((n - a) / (1 - a))**2 
-                M_plCRdCz = W_plCz * f_yk / gamma_m0 
-                M_NCz = M_plCRdCz * k
-            return render_instance(n_ed, n_pl_rd, self.section_w_pl_z, self.f_yk, self.section_area, self.b, self.t_f)
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(N_Ed, N_plCRd, W_plCz, f_yk, A, b, t_f):
+            """
+            """
+            n = N_Ed / N_plCRd
+            a = (A - 2*b*t_f) / A
+            k =  1 - ((n - a) / (1 - a))**2 
+            M_plCRdCz = W_plCz * f_yk / gamma_m0; M_plCRdCz = (W_plCz * f_yk / gamma_m0).to_preferred(preferred_units)
+            M_NCz = M_plCRdCz * k; M_NCz = (M_plCRdCz * k).to_preferred(preferred_units)
+        return render_instance(n_ed, n_pl_rd, self.section_w_pl_z, self.f_yk, self.section_area, self.b, self.t_f)
 
 ## Bending and shear
 
@@ -282,7 +225,7 @@ def bending_moment_axial_z(self, render = False, prefix: str = '', precision: in
 
 # ----- STABILITY
 
-def eulerian_critic_load(self, render = False, prefix: str = '', precision: int = 3):
+def eulerian_critic_load(self, render = False, preferred_units=None, precision: int = 3):
     """
     """
     if render==False:    
@@ -291,24 +234,14 @@ def eulerian_critic_load(self, render = False, prefix: str = '', precision: int 
         n_cr = min(n_cr_y, n_cr_z)
         return n_cr
     elif render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(E, I_y, I_z, L_0):
-                """
-                """
-                N_crCy = ((pi**2 * E * I_y) / L_0**2).prefix(prefix)
-                N_crCz = ((pi**2 * E * I_z) / L_0**2).prefix(prefix)
-                N_cr = (min(N_crCy, N_crCz)).prefix(prefix)
-            return render_instance(self.elastic_modulus, self.section_inertia_y, self.section_inertia_z, self.length)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(E, I_y, I_z, L_0):
-                """
-                """
-                N_crCy = ((pi**2 * E * I_y) / L_0**2)
-                N_crCz = ((pi**2 * E * I_z) / L_0**2)
-                N_cr = min(N_crCy, N_crCz)
-            return render_instance(self.elastic_modulus, self.section_inertia_y, self.section_inertia_z, self.length)            
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(E, I_y, I_z, L_0):
+            """
+            """
+            N_crCy = ((pi**2 * E * I_y) / L_0**2); N_crCy = (((pi**2 * E * I_y) / L_0**2)).to_preferred(preferred_units)
+            N_crCz = ((pi**2 * E * I_z) / L_0**2); N_crCz = (((pi**2 * E * I_z) / L_0**2)).to_preferred(preferred_units)
+            N_cr = min(N_crCy, N_crCz); N_cr = (min(N_crCy, N_crCz)).to_preferred(preferred_units)
+        return render_instance(self.elastic_modulus, self.section_inertia_y, self.section_inertia_z, self.length)            
 
 def slenderness_relative(self):
     """"
@@ -316,7 +249,7 @@ def slenderness_relative(self):
     lambda_relative = sqrt(self.section_area * self.f_yk / self.eulerian_critic_load())
     return lambda_relative
 
-def normal_force_buckling(self, buckling_curve: str, render = False, prefix: str = '', precision: int = 3):
+def normal_force_buckling(self, buckling_curve: str, render = False, preferred_units=None, precision: int = 3):
     """
 
     Buckling resistance for uniform members in compression
@@ -336,30 +269,20 @@ def normal_force_buckling(self, buckling_curve: str, render = False, prefix: str
     if render==False:
         psi = 0.5*(1+alpha*(lambd-0.2)+lambd**2)
         chi = 1/ (psi+sqrt(psi**2 - lambd**2))
-        N_bRd = chi * self.section_area * self.f_yk / gamma_m1
+        N_bRd = (chi * self.section_area * self.f_yk / gamma_m1).to_preferred(preferred_units)
         return N_bRd
     if render==True:
-        try:
             @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
             def render_instance(A, f_yk, alpha, lamb):
                 """
                 """
                 Phi = 0.5*(1+alpha*(lamb-0.2)+lamb**2)
                 chi = 1/ (Phi+sqrt(Phi**2 - lamb**2))
-                N_bCRd = (chi * A * f_yk / gamma_m1).prefix(prefix)
-            return render_instance(self.section_area, self.f_yk, alpha, lambd)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk, alpha, lamb):
-                """
-                """
-                Phi = 0.5*(1+alpha*(lamb-0.2)+lamb**2)
-                chi = 1/ (Phi+sqrt(Phi**2 - lamb**2))
-                N_bcRd = chi * A * f_yk / gamma_m1
+                N_bcRd = chi * A * f_yk / gamma_m1; N_bcRd = (chi * A * f_yk / gamma_m1).to_preferred(preferred_units)
             return render_instance(self.section_area, self.f_yk, alpha, lambd)
 
 
-def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckling_curve_lt: str = 'a', beta:float = 1.0, render = False, prefix: str = '', precision: int = 3):
+def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckling_curve_lt: str = 'a', beta:float = 1.0, render = False, preferred_units=None, precision: int = 3):
     """
     
     Buckling resistance for uniform members in bending with action along y axis
@@ -377,41 +300,31 @@ def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
     l_cr = self.length * beta
     lamb_lt_0 = 0.2
     if render==False:
-        m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_y * self.shear_modulus * self.section_inertia_torsional); M_cr = (M_cr).prefix(prefix) # Approximation without taking warping stiffness into account
+        # Approximation without taking warping stiffness into account
+        m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_y * self.shear_modulus * self.section_inertia_torsional)
         lambd_lt = sqrt(self.section_w_pl_y* self.f_yk/m_cr)
         phi_lt = 0.5*(1+alpha_lt*(lambd_lt-lamb_lt_0)+beta*lambd_lt**2)
         f = 1-0.5*(1-k_c)*(1-2*(lambd_lt-0.8)**2)
         chi_lt = (1/f)* (1/ (phi_lt+sqrt(phi_lt**2 - beta*lambd_lt**2)))
-        M_bRd = chi_lt * self.section_w_pl_y * self.f_yk / gamma_m1; M_bRd = (M_bRd).prefix(prefix)
+        M_bRd = (chi_lt * self.section_w_pl_y * self.f_yk / gamma_m1).to_preferred(preferred_units)
         return M_bRd
     if render==True:
-        try:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk, E, G, I_y, I_T, W_pl_y, L_cr, alpha_LT, lamb_LTc0):
-                """
-                """
-                M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T) # Approximation without taking warping stiffness into account
-                lambd_LT = sqrt(W_pl_y* f_yk/M_cr)
-                phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
-                f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
-                chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
-                M_bcRd = chi_LT * W_pl_y * f_yk / gamma_m1
-            return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
-        except:
-            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-            def render_instance(A, f_yk, E, G, I_y, I_T, W_pl_y, L_cr, alpha_LT, lamb_LTc0):
-                """
-                """
-                M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T) # Approximation without taking warping stiffness into account
-                lambd_LT = sqrt(W_pl_y* f_yk/M_cr)
-                phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
-                f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
-                chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
-                M_bcRd = chi_LT * W_pl_y * f_yk / gamma_m1
-            return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        def render_instance(A, f_yk, E, G, I_y, I_T, W_pl_y, L_cr, alpha_LT, lamb_LTc0):
+            """
+            """
+            # Approximation without taking warping stiffness into account
+            M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T)
+            lambd_LT = sqrt(W_pl_y* f_yk/M_cr)
+            phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
+            f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
+            chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
+            M_bcRd = chi_LT * W_pl_y * f_yk / gamma_m1; M_bcRd = (chi_LT * W_pl_y * f_yk / gamma_m1).to_preferred(preferred_units)
+            return M_bcRd
+        return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
         
 
-    def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckling_curve_lt: str = 'a', beta:float = 1.0, render = False, prefix: str = '', precision: int = 3):
+    def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckling_curve_lt: str = 'a', beta:float = 1.0, render = False, preferred_units=None, precision: int = 3):
         """
         
         Buckling resistance for uniform members in bending with action along z axis
@@ -429,35 +342,24 @@ def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
         l_cr = self.length * beta
         lamb_lt_0 = 0.2
         if render==False:
-            m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_z * self.shear_modulus * self.section_inertia_torsional); M_cr = (M_cr).prefix(prefix) # Approximation without taking warping stiffness into account
+            # Approximation without taking warping stiffness into account
+            m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_z * self.shear_modulus * self.section_inertia_torsional)
             lambd_lt = sqrt(self.section_w_pl_z* self.f_yk/m_cr)
             phi_lt = 0.5*(1+alpha_lt*(lambd_lt-lamb_lt_0)+beta*lambd_lt**2)
             f = 1-0.5*(1-k_c)*(1-2*(lambd_lt-0.8)**2)
             chi_lt = (1/f)* (1/ (phi_lt+sqrt(phi_lt**2 - beta*lambd_lt**2)))
-            M_bRd = chi_lt * self.section_w_pl_z * self.f_yk / gamma_m1; M_bRd = (M_bRd).prefix(prefix)
+            M_bRd = chi_lt * self.section_w_pl_z * self.f_yk / gamma_m1
             return M_bRd
         if render==True:
-            try:
-                @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-                def render_instance(A, f_yk, E, G, I_z, I_T, W_pl_z, L_cr, alpha_LT, lamb_LTc0):
-                    """
-                    """
-                    M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T) # Approximation without taking warping stiffness into account
-                    lambd_LT = sqrt(W_pl_z* f_yk/M_cr)
-                    phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
-                    f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
-                    chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
-                    M_bcRd = chi_LT * W_pl_z * f_yk / gamma_m1
-                return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
-            except:
-                @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-                def render_instance(A, f_yk, E, G, I_z, I_T, W_pl_z, L_cr, alpha_LT, lamb_LTc0):
-                    """
-                    """
-                    M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T) # Approximation without taking warping stiffness into account
-                    lambd_LT = sqrt(W_pl_z* f_yk/M_cr)
-                    phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
-                    f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
-                    chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
-                    M_bcRd = chi_LT * W_pl_z * f_yk / gamma_m1
-                return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_z, self.section_inertia_torsional, self.section_w_pl_z, l_cr, alpha_lt, lamb_lt_0)
+            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+            def render_instance(A, f_yk, E, G, I_z, I_T, W_pl_z, L_cr, alpha_LT, lamb_LTc0):
+                """
+                """
+                # Approximation without taking warping stiffness into account
+                M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T)
+                lambd_LT = sqrt(W_pl_z* f_yk/M_cr)
+                phi_LT = 0.5*(1+alpha_LT*(lambd_LT-lamb_LTc0)+beta*lambd_LT**2)
+                f = 1-0.5*(1-k_c)*(1-2*(lambd_LT-0.8)**2)
+                chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lambd_LT**2)))
+                M_bcRd = chi_LT * W_pl_z * f_yk / gamma_m1; M_bcRd = (chi_LT * W_pl_z * f_yk / gamma_m1).to_preferred(preferred_units)
+            return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_z, self.section_inertia_torsional, self.section_w_pl_z, l_cr, alpha_lt, lamb_lt_0)
