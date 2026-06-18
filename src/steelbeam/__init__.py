@@ -23,6 +23,7 @@ The possible import options to use units are:
     length = 10 * ureg.m
     beam = sb.SteelBeam(...)
 """
+__version__ = "0.1.0"
 
 from .steelbeam import SteelBeam, profile_type, profile_list, database, get_profiles_by_type
 from .units import (ureg, Quantity, m, mm, inch, MPa, ksi,)

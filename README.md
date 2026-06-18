@@ -40,7 +40,16 @@ import steelbeam as sb
 After importing the library, you must create an object representing the steel beam. 
 You can select an existing standard profile from the provided databases (currently only European and American) or define a new profile with custom characteristics (manual entries or using the sectionproperties library's definition).
 
+*Example with provided database*
 ![How it works](docs/images/image1.gif)
+
+***
+
+*Example manual entries*
+
+***
+
+*Example with import dxf using sectionproperties library*
 
 ## Docs
 

@@ -4,12 +4,15 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "steelbeam"
+description = "Lightweight Python library for structural steel beam design"
 authors = [{name = "Rocco Raimo", email = "software@ingraimo.simplelogin.com"}]
+requires-python = ">=3.9"
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
-dynamic = ["version", "description"]
+dynamic = ["version"]
 dependencies = [
+    "numpy",
     "handcalcs>=1.11.0",
     "pint>=0.25.3"
 ]
