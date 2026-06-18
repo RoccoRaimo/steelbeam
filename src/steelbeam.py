@@ -15,6 +15,7 @@ from . import analysis_NBR
 import handcalcs
 handcalcs.set_option("custom_symbols", {"C": ","})
 
+from .geometry import load_sectionproperties_geometry, plot_sectionproperties_geometry
 from .units import Quantity, m, mm, inch, MPa, ksi
 from .units import convert_quantity_to_display
 from .units import DISPLAY_UNITS
@@ -218,7 +219,38 @@ class SteelBeam:
         
         if self.profile == 'User defined':
             if self._section_properties_source == 'sectionproperties':
-                self._load_sectionproperties_geometry(self._section_geometry, self._section_mesh_size)
+                geom, section, geometry_dims = load_sectionproperties_geometry(
+                    self._section_geometry,
+                    self._section_mesh_size,
+                    self.units,
+                )
+                self._sectionproperties_geom = geom
+                self._sectionproperties_section = section
+
+                area = section.get_area()
+                ixx_c, iyy_c, ixy_c = section.get_ic()
+                zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
+
+                j = None
+                try:
+                    section.calculate_warping_properties()
+                    j = section.get_j()
+                except Exception:
+                    j = None
+
+                self._section_area = float(area) * mm**2
+                self._section_inertia_y = float(ixx_c) * mm**4
+                self._section_inertia_z = float(iyy_c) * mm**4
+                self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
+                self._section_w_pl_y = float(max(abs(zxx_plus), abs(zxx_minus))) * mm**3
+                self._section_w_pl_z = float(max(abs(zyy_plus), abs(zyy_minus))) * mm**3
+
+                if geometry_dims:
+                    self._h_w = geometry_dims.get('h_w')
+                    self._t_w = geometry_dims.get('t_w')
+                    self._b = geometry_dims.get('b')
+                    self._t_f = geometry_dims.get('t_f')
+
             elif self._section_properties_source != 'manual':
                 raise ValueError("section_properties_source must be either 'manual' or 'sectionproperties'")
             return
@@ -271,129 +303,41 @@ class SteelBeam:
         except KeyError as e:
             raise ValueError(f"Missing key '{e}' in database entry for profile '{self.profile}'. Check the database structure.")
         
-    def _load_sectionproperties_geometry(self, section_geometry, mesh_size=None):
-        try:
-            import sectionproperties.pre.library as sp_lib
-            import sectionproperties.pre.geometry as sp_geom
-            import sectionproperties.analysis.section as sp_section
-        except ImportError as e:
-            raise ImportError(
-                "sectionproperties is required when section_properties_source='sectionproperties'. "
-                "Install the package in the current Python environment."
-            ) from e
-
-        if section_geometry is None:
-            raise ValueError("section_geometry must be provided when section_properties_source='sectionproperties'.")
-
-        geom = section_geometry
-        if isinstance(section_geometry, dict):
-            geom = self._create_sectionproperties_geometry_from_dict(section_geometry, sp_lib, sp_geom)
-        elif isinstance(section_geometry, (str, Path)):
-            geom = sp_geom.load_dxf(section_geometry,
-                                     spline_delta=0.1,
-                                     degrees_per_segment=5.0)
-        elif not hasattr(section_geometry, 'create_mesh') or not hasattr(section_geometry, 'calculate_area'):
-            raise ValueError(
-                "section_geometry must be a sectionproperties Geometry object, a DXF file path, or a dictionary describing the section geometry."
-            )
-
-        self._sectionproperties_geom = geom
-
-        if mesh_size is None:
-            mesh_size = self._estimate_sectionproperties_mesh_size(geom)
-
-        geom.create_mesh(mesh_sizes=mesh_size)
-        section = sp_section.Section(geom)
-        self._sectionproperties_section = section
-        section.calculate_geometric_properties()
-
-        area = section.get_area()
-        ixx_c, iyy_c, ixy_c = section.get_ic()
-        zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
-
-        j = None
-        try:
-            section.calculate_warping_properties()
-            j = section.get_j()
-        except Exception:
-            j = None
-
-        self._section_area = float(area) * mm**2
-        self._section_inertia_y = float(ixx_c) * mm**4
-        self._section_inertia_z = float(iyy_c) * mm**4
-        self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
-        self._section_w_pl_y = float(max(abs(zxx_plus), abs(zxx_minus))) * mm**3
-        self._section_w_pl_z = float(max(abs(zyy_plus), abs(zyy_minus))) * mm**3
-
-        if isinstance(section_geometry, dict):
-            self._h_w = self._normalize_length_to_mm(section_geometry.get('d'))
-            self._t_w = self._normalize_length_to_mm(section_geometry.get('t_w'))
-            self._b = self._normalize_length_to_mm(section_geometry.get('b'))
-            self._t_f = self._normalize_length_to_mm(section_geometry.get('t_f'))
-
-    def _normalize_length_to_mm(self, value):
-        if value is None:
-            return None
-        if isinstance(value, Quantity):
-            return value.to(mm)
-        if self.units == 'SI':
-            return value * mm
-        return (value * inch).to(mm)
-
-    def _estimate_sectionproperties_mesh_size(self, geom):
-        try:
-            bbox = geom.calculate_extents()
-            width = bbox[1][0] - bbox[0][0]
-            height = bbox[1][1] - bbox[0][1]
-            mesh_size = min(max(width, height) / 20.0, 10.0)
-            return float(mesh_size)
-        except Exception:
-            return 5.0
-
-    def _create_sectionproperties_geometry_from_dict(self, geometry_dict, sp_lib, sp_geom):
-        geom_type = geometry_dict.get('type', '').lower()
-        if geom_type in ('i_section', 'i', 'i_section'):
-            d = self._normalize_length_to_mm(geometry_dict['d']).magnitude
-            b = self._normalize_length_to_mm(geometry_dict['b']).magnitude
-            t_f = self._normalize_length_to_mm(geometry_dict['t_f']).magnitude
-            t_w = self._normalize_length_to_mm(geometry_dict['t_w']).magnitude
-            r = self._normalize_length_to_mm(geometry_dict.get('r', min(t_f, t_w) / 2)).magnitude
-            n_r = int(geometry_dict.get('n_r', 16))
-            return sp_lib.i_section(d=d, b=b, t_f=t_f, t_w=t_w, r=r, n_r=n_r)
-        if geom_type in ('rectangular_section', 'rectangle', 'rect'):
-            width = self._normalize_length_to_mm(geometry_dict['width']).magnitude
-            height = self._normalize_length_to_mm(geometry_dict['height']).magnitude
-            return sp_lib.rectangular_section(b=width, d=height)
-        if geom_type in ('box_girder_section', 'box', 'box_section'):
-            return sp_lib.box_girder_section(
-                d=self._normalize_length_to_mm(geometry_dict['d']).magnitude,
-                b=self._normalize_length_to_mm(geometry_dict['b']).magnitude,
-                t_f=self._normalize_length_to_mm(geometry_dict['t_f']).magnitude,
-                t_w=self._normalize_length_to_mm(geometry_dict['t_w']).magnitude,
-                r=self._normalize_length_to_mm(geometry_dict.get('r', 0)).magnitude,
-                n_r=int(geometry_dict.get('n_r', 16)),
-            )
-        if geom_type in ('angle_section', 'angle', 'l_section'):
-            return sp_lib.angle_section(
-                d=self._normalize_length_to_mm(geometry_dict['d']).magnitude,
-                b=self._normalize_length_to_mm(geometry_dict['b']).magnitude,
-                t=self._normalize_length_to_mm(geometry_dict['t']).magnitude,
-                r=self._normalize_length_to_mm(geometry_dict.get('r', 0)).magnitude,
-                n_r=int(geometry_dict.get('n_r', 16)),
-            )
-        if geom_type in ('dxf', 'dxf_file', 'dxf_path'):
-            dxf_path = geometry_dict.get('path') or geometry_dict.get('filepath') or geometry_dict.get('file')
-            if dxf_path is None:
-                raise ValueError("DXF geometry requires a 'path' field pointing to the DXF file.")
-            return sp_geom.load_dxf(
-                dxf_path,
-                spline_delta=float(geometry_dict.get('spline_delta', 0.1)),
-                degrees_per_segment=float(geometry_dict.get('degrees_per_segment', 5.0)),
-            )
-        raise ValueError(
-            f"Unsupported section_properties_source geometry type: {geometry_dict.get('type')}. "
-            "Supported types include 'i_section', 'rectangular_section', 'box_girder_section', and 'angle_section'."
-        )
+    def __getattr__(self, name):
+        """
+        Intercept attribute access for automatic unit conversion.
+        
+        Returns a Quantity object in the beam's display units, preserving
+        the ability to perform further calculations.
+        """
+        # Evita loop infinito per attributi privati
+        if name.startswith('_'):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        
+        # Controlla se è un attributo che deve essere convertito
+        if name in self.ATTR_TO_QUANTITY_TYPE:
+            private_attr = f'_{name}'
+            value = object.__getattribute__(self, private_attr)
+            
+            if value is None:
+                return None
+            
+            if isinstance(value, Quantity):
+                quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
+                
+                # Converti il Quantity alle unità di display (mantenendo l'oggetto Quantity)
+                target_unit_str = DISPLAY_UNITS[self.units].get(quantity_type)
+                if target_unit_str and target_unit_str != '':
+                    try:
+                        return value.to(target_unit_str)
+                    except pint.DimensionalityError:
+                        # Fallback: se la conversione fallisce, restituisci il valore originale
+                        return value
+                return value
+            
+            return value
+        
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def __getattr__(self, name):
         """
