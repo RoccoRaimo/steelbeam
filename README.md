@@ -2,23 +2,11 @@
 
 A lightweight Python library for structural steel beam design and verification, with native LaTeX formula rendering and multi-code support (Eurocode, AISC, NBR).
 
-> 💡 **Coming soon**: Desktop application for non-interactive usage — works side-by-side with Jupyter notebooks! 
-
-
 ## Installation
 
-> ⚠️ **Work in progress** — package not yet on PyPI
-
+Install with:
 ```bash
-# Clone and install locally
-git clone https://github.com/yourusername/steelbeam.git
-cd steelbeam
-pip install -e .
-```
-
-Or install directly from GitHub:
-```bash
-pip install git+https://github.com/yourusername/steelbeam.git
+pip install steelbeam
 ```
 
 You can import with:
@@ -33,7 +21,6 @@ import steelbeam as sb
 - **Transparent calculations**: Every formula is rendered in LaTeX — no black boxes
 - **Jupyter-native**: Designed for interactive exploration in notebooks
 - **Multi-definition of geometry**: Pre-defined databases or user definition (manual values or using sectionproperties library)
-- **Desktop app coming**: Soon you'll be able to run calculations from a standalone executable without writing code
 
 ## How it works
 
@@ -43,13 +30,7 @@ You can select an existing standard profile from the provided databases (current
 *Example with provided database*
 ![How it works](docs/images/image1.gif)
 
-***
 
-*Example manual entries*
-
-***
-
-*Example with import dxf using sectionproperties library*
 
 ## Docs
 
@@ -88,7 +69,7 @@ You can use the following documentation for initial understanding of library's c
 
 ## Desktop Application (Coming Soon)
 
-While `steelbeam` is designed for interactive use in Jupyter notebooks, I'm about to build also a **standalone desktop application** that lets you perform the same calculations without writing code.
+While `steelbeam` is designed for interactive use in Jupyter notebooks, my aim is to build also a **standalone desktop application** that lets you perform the same calculations without writing code.
 
 - Point-and-click interface
 - Export reports in PDF/LaTeX
