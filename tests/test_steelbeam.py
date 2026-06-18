@@ -5,6 +5,7 @@ Test per la classe SteelBeam - test_steelbeam.py
 import pytest
 import sys
 import os
+from pathlib import Path
 
 # Aggiungi il percorso del package src
 src_path = os.path.join(os.path.dirname(__file__), '..')
@@ -256,3 +257,42 @@ class TestSteelBeamSectionProperties:
     def test_plastic_modulus_z(self, sample_beam):
         """Test modulo plastico z"""
         assert sample_beam.section_w_pl_z == 280000
+
+    def test_sectionproperties_geometry_dict(self):
+        """Test sectionproperties geometry calculation from dictionary"""
+        pytest.importorskip('sectionproperties')
+        beam = SteelBeam(
+            length=6000,
+            elastic_modulus=210000,
+            f_yk=355,
+            profile='User defined',
+            section_properties_source='sectionproperties',
+            section_geometry={
+                'type': 'rectangular_section',
+                'width': 100.0,
+                'height': 200.0,
+            },
+            units='SI'
+        )
+        assert beam.section_area == pytest.approx(10000, rel=1e-3)
+        assert beam.section_inertia_y == pytest.approx(66666666.6667, rel=1e-3)
+        assert beam.section_inertia_z == pytest.approx(16666666.6667, rel=1e-3)
+
+    def test_sectionproperties_geometry_dxf(self):
+        """Test sectionproperties geometry calculation from DXF file"""
+        pytest.importorskip('sectionproperties')
+        dxf_path = Path(__file__).resolve().parents[1] / 'Sketch' / 'sectionproperties' / '_DXF' / '240314_Sez4_SEG 13ME.dxf'
+        if not dxf_path.exists():
+            pytest.skip(f"DXF test file not found: {dxf_path}")
+        beam = SteelBeam(
+            length=6000,
+            elastic_modulus=210000,
+            f_yk=355,
+            profile='User defined',
+            section_properties_source='sectionproperties',
+            section_geometry=str(dxf_path),
+            units='SI'
+        )
+        assert beam.section_area > 0
+        assert beam.section_inertia_y > 0
+        assert beam.section_inertia_z > 0
