@@ -574,7 +574,12 @@ class SteelBeam:
             'gamma_m1': 1.05,
             'gamma_m2': 1.25,
         },
-        'AISC': {},
+        'AISC': {
+            'phi_flexure': 1.00,
+            'phi_shear': 1.00,
+            'phi_compression': 0.95,
+            'phi_tension_yield': 0.95
+        },
         'NBR': {},
     }
 
