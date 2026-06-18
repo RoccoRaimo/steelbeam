@@ -82,7 +82,7 @@ class SteelBeam:
                  t_f=None,
                  section_properties_source='manual',
                  section_geometry=None,
-                 section_mesh_size=None,
+                 section_mesh_size=100,
                  units='SI'):
         """
         Class that represents the steel beam object.
@@ -213,6 +213,8 @@ class SteelBeam:
         self._section_properties_source = section_properties_source
         self._section_geometry = section_geometry
         self._section_mesh_size = section_mesh_size
+        self._sectionproperties_geom = None
+        self._sectionproperties_section = None
         
         if self.profile == 'User defined':
             if self._section_properties_source == 'sectionproperties':
@@ -295,11 +297,14 @@ class SteelBeam:
                 "section_geometry must be a sectionproperties Geometry object, a DXF file path, or a dictionary describing the section geometry."
             )
 
+        self._sectionproperties_geom = geom
+
         if mesh_size is None:
             mesh_size = self._estimate_sectionproperties_mesh_size(geom)
 
         geom.create_mesh(mesh_sizes=mesh_size)
         section = sp_section.Section(geom)
+        self._sectionproperties_section = section
         section.calculate_geometric_properties()
 
         area = section.get_area()
@@ -549,7 +554,25 @@ class SteelBeam:
     def get_section_properties(self, output_units: str = None) -> dict:
         target_units = self.units if output_units is None else output_units.upper()
         return units.get_section_properties(self, target_units)
-    
+
+    def plot_section(self,
+                     geometry_kwargs: dict | None = None,
+                     centroid_kwargs: dict | None = None):
+        """Plot the section geometry and centroids for sectionproperties-defined sections."""
+        if self.profile != 'User defined' or self._section_properties_source != 'sectionproperties':
+            raise ValueError(
+                "plot_section is available only when profile='User defined' and section_properties_source='sectionproperties'."
+            )
+        if self._sectionproperties_geom is None or self._sectionproperties_section is None:
+            raise ValueError("Sectionproperties geometry has not been loaded; cannot plot section.")
+
+        geometry_kwargs = geometry_kwargs or {}
+        centroid_kwargs = centroid_kwargs or {}
+
+        ax = self._sectionproperties_geom.plot_geometry(**geometry_kwargs)
+        self._sectionproperties_section.plot_centroids(**centroid_kwargs)
+        return ax
+
     def __repr__(self):
         props = self.get_section_properties(self.units)
         
