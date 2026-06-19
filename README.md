@@ -54,7 +54,9 @@ You can use the following documentation for initial understanding of library's c
 		- Euler buckling :heavy_check_mark:
 		- Compression member buckling :heavy_check_mark:
 		- Bending with Lateral-Torsional buckling :heavy_check_mark:
-	- **AISC/AASHTO** (work in progress)
+	- **AISC/AASHTO**
+	 	- Normal force tension resistance :heavy_check_mark:
+		- Normal force compression resistance :heavy_check_mark:
 	- **NBR** (work in progress)
 - Configurable **partial safety factors**
 - All resistance functions support both calculation mode and **rendered output mode** using the handcalcs library
