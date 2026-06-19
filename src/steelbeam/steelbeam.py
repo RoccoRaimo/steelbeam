@@ -64,6 +64,44 @@ def get_profiles_by_type(profile_type_name: str) -> list:
 
 
 class SteelBeam:
+    # ==================== CLASS CONSTANTS ====================
+    # Attribute mapping -> quantity_type for automatic conversion
+    ATTR_TO_QUANTITY_TYPE = {
+        'elastic_modulus': 'stress',
+        'f_yk': 'stress',
+        'shear_modulus': 'stress',
+        'length': 'length',
+        'section_area': 'area',
+        'section_area_shear_y': 'area',
+        'section_area_shear_z': 'area',
+        'section_inertia_y': 'inertia',
+        'section_inertia_z': 'inertia',
+        'section_inertia_torsional': 'inertia',
+        'section_w_pl_y': 'section_modulus',
+        'section_w_pl_z': 'section_modulus',
+        'h_w': 'length',
+        't_w': 'length',
+        'b': 'length',
+        't_f': 'length',
+    }
+
+    # Define default partial factors for the national codes
+    _default_partial_factors = {
+        'EC': {
+            'gamma_m0': 1.05,
+            'gamma_m1': 1.05,
+            'gamma_m2': 1.25,
+        },
+        'AISC': {
+            'phi_flexure': 1.00,
+            'phi_shear': 1.00,
+            'phi_compression': 0.95,
+            'phi_tension_yield': 0.95
+        },
+        'NBR': {},
+    }
+
+    # ==================== INITIALIZATION ====================
     def __init__(self,
                  length,
                  elastic_modulus,
@@ -163,52 +201,16 @@ class SteelBeam:
         if self.units not in ('SI', 'IMPERIAL'):
             raise ValueError("units must be either 'SI' or 'Imperial'")
 
-        # Memorizza internamente in SI (con prefisso _)
+        # Store internally in SI (with the prefix _)
         self._units = self.units
         
         ni = 0.3
-        
-        # Helper per normalizzare a SI
-        def _normalize_to_si(value, si_unit, imperial_factor, quantity_type):
-            """Normalizza un valore a unit SI base"""
-            if value is None:
-                return None
-            if isinstance(value, Quantity):
-                # Converti all'unit SI base appropriata
-                if quantity_type == 'stress':
-                    return value.to(MPa)
-                elif quantity_type == 'length':
-                    return value.to(mm)
-                elif quantity_type == 'area':
-                    return value.to(mm**2)
-                elif quantity_type == 'inertia':
-                    return value.to(mm**4)
-                elif quantity_type == 'section_modulus':
-                    return value.to(mm**3)
-                else:
-                    return value
-            if self.units == 'SI':
-                return value * si_unit
-            return value * imperial_factor * si_unit
 
-        # Normalizza e memorizza tutti gli attributi
-        self._length = _normalize_to_si(length, m, 1.0, 'length')
-        self._elastic_modulus = _normalize_to_si(elastic_modulus, MPa, 1.0, 'stress')
-        self._f_yk = _normalize_to_si(f_yk, MPa, 1.0, 'stress')
+        # Normalise and store all attributes
+        self._length = self._normalize_to_si(length, m, 1.0, 'length')
+        self._elastic_modulus = self._normalize_to_si(elastic_modulus, MPa, 1.0, 'stress')
+        self._f_yk = self._normalize_to_si(f_yk, MPa, 1.0, 'stress')
         self._shear_modulus = self._elastic_modulus / (2*(1+ni))
-        
-        self._section_area = _normalize_to_si(section_area, mm**2, 645.16, 'area')
-        self._section_area_shear_y = _normalize_to_si(section_area_shear_y, mm**2, 645.16, 'area')
-        self._section_area_shear_z = _normalize_to_si(section_area_shear_z, mm**2, 645.16, 'area')
-        self._section_inertia_y = _normalize_to_si(section_inertia_y, mm**4, 416231.0597, 'inertia')
-        self._section_inertia_z = _normalize_to_si(section_inertia_z, mm**4, 416231.0597, 'inertia')
-        self._section_inertia_torsional = _normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
-        self._section_w_pl_y = _normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
-        self._section_w_pl_z = _normalize_to_si(section_w_pl_z, mm**3, 16387.064, 'section_modulus')
-        self._h_w = _normalize_to_si(h_w, mm, 25.4, 'length')
-        self._t_w = _normalize_to_si(t_w, mm, 25.4, 'length')
-        self._b = _normalize_to_si(b, mm, 25.4, 'length')
-        self._t_f = _normalize_to_si(t_f, mm, 25.4, 'length')
         
         self.profile = profile
         self._section_properties_source = section_properties_source
@@ -216,45 +218,81 @@ class SteelBeam:
         self._section_mesh_size = section_mesh_size
         self._sectionproperties_geom = None
         self._sectionproperties_section = None
-        
+
+        self._section_area = None
+        self._section_area_shear_y = None
+        self._section_area_shear_z = None
+        self._section_inertia_y = None
+        self._section_inertia_z = None
+        self._section_inertia_torsional = None
+        self._section_w_pl_y = None
+        self._section_w_pl_z = None
+        self._h_w = None
+        self._t_w = None
+        self._b = None
+        self._t_f = None
+
         if self.profile == 'User defined':
-            if self._section_properties_source == 'sectionproperties':
-                geom, section, geometry_dims = load_sectionproperties_geometry(
-                    self._section_geometry,
-                    self._section_mesh_size,
-                    self.units,
+            if self._section_properties_source == 'manual':
+                self._normalize_section_properties(
+                    section_area=section_area,
+                    section_area_shear_y=section_area_shear_y,
+                    section_area_shear_z=section_area_shear_z,
+                    section_inertia_y=section_inertia_y,
+                    section_inertia_z=section_inertia_z,
+                    section_inertia_torsional=section_inertia_torsional,
+                    section_w_pl_y=section_w_pl_y,
+                    section_w_pl_z=section_w_pl_z,
+                    h_w=h_w,
+                    t_w=t_w,
+                    b=b,
+                    t_f=t_f,
                 )
-                self._sectionproperties_geom = geom
-                self._sectionproperties_section = section
-
-                area = section.get_area()
-                ixx_c, iyy_c, ixy_c = section.get_ic()
-                zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
-
-                j = None
-                try:
-                    section.calculate_warping_properties()
-                    j = section.get_j()
-                except Exception:
-                    j = None
-
-                self._section_area = float(area) * mm**2
-                self._section_inertia_y = float(ixx_c) * mm**4
-                self._section_inertia_z = float(iyy_c) * mm**4
-                self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
-                self._section_w_pl_y = float(max(abs(zxx_plus), abs(zxx_minus))) * mm**3
-                self._section_w_pl_z = float(max(abs(zyy_plus), abs(zyy_minus))) * mm**3
-
-                if geometry_dims:
-                    self._h_w = geometry_dims.get('h_w')
-                    self._t_w = geometry_dims.get('t_w')
-                    self._b = geometry_dims.get('b')
-                    self._t_f = geometry_dims.get('t_f')
-
-            elif self._section_properties_source != 'manual':
+            elif self._section_properties_source == 'sectionproperties':
+                self._load_from_sectionproperties()
+            else:
                 raise ValueError("section_properties_source must be either 'manual' or 'sectionproperties'")
             return
-        # Preliminary check
+
+        self._load_from_database()
+
+    # ==================== PRIVATE SECTION LOADING HELPERS ====================
+    def _load_from_sectionproperties(self):
+        """Load section properties from a sectionproperties geometry source."""
+        geom, section, geometry_dims = load_sectionproperties_geometry(
+            self._section_geometry,
+            self._section_mesh_size,
+            self.units,
+        )
+        self._sectionproperties_geom = geom
+        self._sectionproperties_section = section
+
+        area = section.get_area()
+        ixx_c, iyy_c, ixy_c = section.get_ic()
+        zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
+
+        j = None
+        try:
+            section.calculate_warping_properties()
+            j = section.get_j()
+        except Exception:
+            j = None
+
+        self._section_area = float(area) * mm**2
+        self._section_inertia_y = float(ixx_c) * mm**4
+        self._section_inertia_z = float(iyy_c) * mm**4
+        self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
+        self._section_w_pl_y = float(max(abs(zxx_plus), abs(zxx_minus))) * mm**3
+        self._section_w_pl_z = float(max(abs(zyy_plus), abs(zyy_minus))) * mm**3
+
+        if geometry_dims:
+            self._h_w = geometry_dims.get('h_w')
+            self._t_w = geometry_dims.get('t_w')
+            self._b = geometry_dims.get('b')
+            self._t_f = geometry_dims.get('t_f')
+
+    def _load_from_database(self):
+        """Load section properties from the profile database."""
         profile_found_in_db = False
         target_value_type = None
 
@@ -267,7 +305,7 @@ class SteelBeam:
             raise ValueError(f"Profile '{self.profile}' not found in the database. Please use 'User defined'!")
 
         db_entry = database[target_value_type][self.profile]
-        
+
         try:
             self._section_area = float(db_entry['A']) * mm**2
             self._section_area_shear_y = float(db_entry.get('Avy', db_entry.get('Avz', 0))) * mm**2
@@ -278,20 +316,20 @@ class SteelBeam:
             self._section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
             self._section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
             
-            # Gestione dimensioni specifiche
+            # Handling specific dimensions
             if target_value_type == 'CHS_SECTION':
                 self._h_w = float(db_entry['OD']) * mm
                 self._t_w = float(db_entry['TDES']) * mm
                 self._b = float(db_entry['OD']) * mm
                 self._t_f = float(db_entry['TDES']) * mm
             elif target_value_type == 'RHS_SECTION':
-                # Assicurati che queste chiavi esistano nel tuo database RHS
+                # Make sure these keys exist in RHS database
                 self._h_w = float(db_entry['Htot']) * mm
                 self._t_w = float(db_entry['tw']) * mm
                 self._b = float(db_entry['b']) * mm
                 self._t_f = float(db_entry['tf']) * mm
             else:
-                # I-sections e altri
+                # I-sections and others
                 self._h_w = (float(db_entry['h']) - 2 * float(db_entry['tf'])) * mm
                 self._t_w = float(db_entry['tw']) * mm
                 if target_value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
@@ -302,43 +340,58 @@ class SteelBeam:
                 
         except KeyError as e:
             raise ValueError(f"Missing key '{e}' in database entry for profile '{self.profile}'. Check the database structure.")
-        
-    def __getattr__(self, name):
-        """
-        Intercept attribute access for automatic unit conversion.
-        
-        Returns a Quantity object in the beam's display units, preserving
-        the ability to perform further calculations.
-        """
-        # Evita loop infinito per attributi privati
-        if name.startswith('_'):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        
-        # Controlla se è un attributo che deve essere convertito
-        if name in self.ATTR_TO_QUANTITY_TYPE:
-            private_attr = f'_{name}'
-            value = object.__getattribute__(self, private_attr)
-            
-            if value is None:
-                return None
-            
-            if isinstance(value, Quantity):
-                quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
-                
-                # Converti il Quantity alle unità di display (mantenendo l'oggetto Quantity)
-                target_unit_str = DISPLAY_UNITS[self.units].get(quantity_type)
-                if target_unit_str and target_unit_str != '':
-                    try:
-                        return value.to(target_unit_str)
-                    except pint.DimensionalityError:
-                        # Fallback: se la conversione fallisce, restituisci il valore originale
-                        return value
-                return value
-            
-            return value
-        
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
+    # ==================== PRIVATE SECTION LOADING HELPERS ====================
+    def _normalize_to_si(self, value, si_unit, imperial_factor, quantity_type):
+        """Normalize a value to the base SI unit."""
+        if value is None:
+            return None
+        if isinstance(value, Quantity):
+            if quantity_type == 'stress':
+                return value.to(MPa)
+            if quantity_type == 'length':
+                return value.to(mm)
+            if quantity_type == 'area':
+                return value.to(mm**2)
+            if quantity_type == 'inertia':
+                return value.to(mm**4)
+            if quantity_type == 'section_modulus':
+                return value.to(mm**3)
+            return value
+        if self.units == 'SI':
+            return value * si_unit
+        return value * imperial_factor * si_unit
+
+    def _normalize_section_properties(
+        self,
+        section_area,
+        section_area_shear_y,
+        section_area_shear_z,
+        section_inertia_y,
+        section_inertia_z,
+        section_inertia_torsional,
+        section_w_pl_y,
+        section_w_pl_z,
+        h_w,
+        t_w,
+        b,
+        t_f,
+    ):
+        """Normalize section properties from user-defined input values."""
+        self._section_area = self._normalize_to_si(section_area, mm**2, 645.16, 'area')
+        self._section_area_shear_y = self._normalize_to_si(section_area_shear_y, mm**2, 645.16, 'area')
+        self._section_area_shear_z = self._normalize_to_si(section_area_shear_z, mm**2, 645.16, 'area')
+        self._section_inertia_y = self._normalize_to_si(section_inertia_y, mm**4, 416231.0597, 'inertia')
+        self._section_inertia_z = self._normalize_to_si(section_inertia_z, mm**4, 416231.0597, 'inertia')
+        self._section_inertia_torsional = self._normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
+        self._section_w_pl_y = self._normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
+        self._section_w_pl_z = self._normalize_to_si(section_w_pl_z, mm**3, 16387.064, 'section_modulus')
+        self._h_w = self._normalize_to_si(h_w, mm, 25.4, 'length')
+        self._t_w = self._normalize_to_si(t_w, mm, 25.4, 'length')
+        self._b = self._normalize_to_si(b, mm, 25.4, 'length')
+        self._t_f = self._normalize_to_si(t_f, mm, 25.4, 'length')
+
+    # ==================== MAGIC METHODS & PROPERTIES ====================
     def __getattr__(self, name):
         """
         Intercept attribute access for automatic unit conversion.
@@ -346,11 +399,11 @@ class SteelBeam:
         Returns a Quantity object in the beam's display units, preserving
         the ability to perform further calculations.
         """
-        # Evita loop infinito per attributi privati
+        # Avoid infinite loops for private attributes
         if name.startswith('_'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         
-        # Controlla se è un attributo che deve essere convertito
+        # Check whether it is an attribute that needs to be converted
         if name in self.ATTR_TO_QUANTITY_TYPE:
             private_attr = f'_{name}'
             value = object.__getattribute__(self, private_attr)
@@ -361,13 +414,13 @@ class SteelBeam:
             if isinstance(value, Quantity):
                 quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
                 
-                # Converti il Quantity alle unità di display (mantenendo l'oggetto Quantity)
+                # Convert the ‘Quantity’ to display units (whilst retaining the ‘Quantity’ field)
                 target_unit_str = DISPLAY_UNITS[self.units].get(quantity_type)
                 if target_unit_str and target_unit_str != '':
                     try:
                         return value.to(target_unit_str)
                     except pint.DimensionalityError:
-                        # Fallback: se la conversione fallisce, restituisci il valore originale
+                        # Fallback: if the conversion fails, return the original value
                         return value
                 return value
             
@@ -382,18 +435,18 @@ class SteelBeam:
         When setting attributes like beam.elastic_modulus = 30*ksi,
         this method normalizes the value to SI units for internal storage.
         """
-        # Per attributi privati e 'units', imposta normalmente
+        # For private attributes and 'units', set as normal
         if name.startswith('_') or name == 'units':
             object.__setattr__(self, name, value)
             return
         
-        # Per attributi mappati, normalizza a SI
+        # For mapped attributes, normalise to SI
         if name in self.ATTR_TO_QUANTITY_TYPE:
             quantity_type = self.ATTR_TO_QUANTITY_TYPE[name]
             private_attr = f'_{name}'
             
             if isinstance(value, Quantity):
-                # Normalizza all'unità SI base appropriata
+                # Normalise to the appropriate base SI unit
                 if quantity_type == 'stress':
                     value = value.to(MPa)
                 elif quantity_type == 'length':
@@ -407,9 +460,38 @@ class SteelBeam:
             
             object.__setattr__(self, private_attr, value)
         else:
-            # Per altri attributi (es. profile, _analysis_methods, etc.), imposta normalmente
+            # For other attributes (e.g. profile, _analysis_methods, etc.), set them as normal
             object.__setattr__(self, name, value)
 
+    def __repr__(self):
+        props = self.get_section_properties(self.units)
+        
+        def fmt(val):
+            if val is None:
+                return "None"
+            if isinstance(val, float) and val.is_integer():
+                return f"{int(val)}"
+            formatted = f"{val:.3f}".rstrip('0').rstrip('.')
+            return formatted
+        
+        return (
+            f"SteelBeam(Profile='{self.profile}' | units={props['units']} | "
+            f"L={fmt(props['length'])} {self._unit_label('length')} | "
+            f"E={fmt(props['elastic_modulus'])} {self._unit_label('stress')} | "
+            f"f_yk={fmt(props['f_yk'])} {self._unit_label('stress')} | "
+            f"A={fmt(props['section_area'])} {self._unit_label('area')} | "
+            f"Iy={fmt(props['section_inertia_y'])} {self._unit_label('inertia')} | "
+            f"Iz={fmt(props['section_inertia_z'])} {self._unit_label('inertia')} | "
+            f"It={fmt(props['section_inertia_torsional'])} {self._unit_label('inertia')} | "
+            f"Wpl_y={fmt(props['section_w_pl_y'])} {self._unit_label('section_modulus')} | "
+            f"Wpl_z={fmt(props['section_w_pl_z'])} {self._unit_label('section_modulus')} | "
+            f"h_w={fmt(props['h_w'])} {self._unit_label('length')} | "
+            f"t_w={fmt(props['t_w'])} {self._unit_label('length')} | "
+            f"b={fmt(props['b'])} {self._unit_label('length')} | "
+            f"t_f={fmt(props['t_f'])} {self._unit_label('length')})"
+        )
+
+    # ==================== UNITS HANDLING ====================
     @property
     def input_units(self) -> dict:
         """Return the units used for input values when creating the beam"""
@@ -472,29 +554,30 @@ class SteelBeam:
         if quantity_type is None or value is None:
             return None
         
-        # Se preferred_units non è specificato, usa le unità dell'istanza
+        # If `preferred_units` is not specified, use the instance’s units
         target_units = preferred_units.upper() if preferred_units else self.units
         
         if target_units not in ('SI', 'IMPERIAL'):
             raise ValueError(f"Invalid unit system: {target_units}. Must be 'SI' or 'IMPERIAL'.")
         
-        # Se il valore non è un Quantity, restituiscilo così com'è
+        # If the value is not a Quantity, return it as it is
         if not isinstance(value, Quantity):
             return value
         
-        # Mappa quantity_type alle unità target
+        # Map `quantity_type` to target units
         target_unit_str = DISPLAY_UNITS[target_units].get(quantity_type)
         
         if not target_unit_str or target_unit_str == '':
-            # Se non c'è una conversione definita, restituisci il risultato originale
+            # If no conversion is defined, return the original result
             return value
         
         try:
             return value.to(target_unit_str)
         except pint.DimensionalityError:
-            # Se la conversione fallisce, restituisci il risultato originale
+            # If the conversion fails, return the original result
             return value
 
+    # ==================== SECTION & GEOMETRY ====================
     def get_section_properties(self, output_units: str = None) -> dict:
         target_units = self.units if output_units is None else output_units.upper()
         return units.get_section_properties(self, target_units)
@@ -517,72 +600,7 @@ class SteelBeam:
         self._sectionproperties_section.plot_centroids(**centroid_kwargs)
         return ax
 
-    def __repr__(self):
-        props = self.get_section_properties(self.units)
-        
-        def fmt(val):
-            if val is None:
-                return "None"
-            if isinstance(val, float) and val.is_integer():
-                return f"{int(val)}"
-            formatted = f"{val:.3f}".rstrip('0').rstrip('.')
-            return formatted
-        
-        return (
-            f"SteelBeam(Profile='{self.profile}' | units={props['units']} | "
-            f"L={fmt(props['length'])} {self._unit_label('length')} | "
-            f"E={fmt(props['elastic_modulus'])} {self._unit_label('stress')} | "
-            f"f_yk={fmt(props['f_yk'])} {self._unit_label('stress')} | "
-            f"A={fmt(props['section_area'])} {self._unit_label('area')} | "
-            f"Iy={fmt(props['section_inertia_y'])} {self._unit_label('inertia')} | "
-            f"Iz={fmt(props['section_inertia_z'])} {self._unit_label('inertia')} | "
-            f"It={fmt(props['section_inertia_torsional'])} {self._unit_label('inertia')} | "
-            f"Wpl_y={fmt(props['section_w_pl_y'])} {self._unit_label('section_modulus')} | "
-            f"Wpl_z={fmt(props['section_w_pl_z'])} {self._unit_label('section_modulus')} | "
-            f"h_w={fmt(props['h_w'])} {self._unit_label('length')} | "
-            f"t_w={fmt(props['t_w'])} {self._unit_label('length')} | "
-            f"b={fmt(props['b'])} {self._unit_label('length')} | "
-            f"t_f={fmt(props['t_f'])} {self._unit_label('length')})"
-        )
-
-    # Attribute mapping -> quantity_type for automatic conversion
-    ATTR_TO_QUANTITY_TYPE = {
-        'elastic_modulus': 'stress',
-        'f_yk': 'stress',
-        'shear_modulus': 'stress',
-        'length': 'length',
-        'section_area': 'area',
-        'section_area_shear_y': 'area',
-        'section_area_shear_z': 'area',
-        'section_inertia_y': 'inertia',
-        'section_inertia_z': 'inertia',
-        'section_inertia_torsional': 'inertia',
-        'section_w_pl_y': 'section_modulus',
-        'section_w_pl_z': 'section_modulus',
-        'h_w': 'length',
-        't_w': 'length',
-        'b': 'length',
-        't_f': 'length',
-    }
-
-
-
-    # Define default partial factors for the national codes
-    _default_partial_factors = {
-        'EC': {
-            'gamma_m0': 1.05,
-            'gamma_m1': 1.05,
-            'gamma_m2': 1.25,
-        },
-        'AISC': {
-            'phi_flexure': 1.00,
-            'phi_shear': 1.00,
-            'phi_compression': 0.95,
-            'phi_tension_yield': 0.95
-        },
-        'NBR': {},
-    }
-
+    # ==================== ANALYSIS ====================
     def analysis(self, code: str = 'EC', partial_factors = 'default'):
         """
         Attach the chosen analysis module methods to this beam instance.
