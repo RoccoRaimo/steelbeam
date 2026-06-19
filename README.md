@@ -36,7 +36,9 @@ You can select an existing standard profile from the provided databases (current
 
 You can use the following documentation for initial understanding of library's capabilities:
 
-<a href="https://deepwiki.com/RoccoRaimo/steelbeam" target="_blank"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deepwiki.com/RoccoRaimo/steelbeam" target="_blank" rel="noopener noreferrer">
+	<img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
+</a>
 
 ## List of features
 
