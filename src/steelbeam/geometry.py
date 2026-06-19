@@ -128,6 +128,7 @@ def load_sectionproperties_geometry(
     geom.create_mesh(mesh_sizes=mesh_size)
     section = sp_section.Section(geom)
     section.calculate_geometric_properties()
+    section.calculate_plastic_properties()
 
     return geom, section, geometry_dims
 

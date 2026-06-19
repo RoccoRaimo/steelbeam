@@ -79,6 +79,8 @@ class SteelBeam:
         'section_inertia_torsional': 'inertia',
         'section_w_pl_y': 'section_modulus',
         'section_w_pl_z': 'section_modulus',
+        'section_radius_gyration_y': 'length',
+        'section_radius_gyration_z': 'length',
         'h_w': 'length',
         't_w': 'length',
         'b': 'length',
@@ -227,6 +229,8 @@ class SteelBeam:
         self._section_inertia_torsional = None
         self._section_w_pl_y = None
         self._section_w_pl_z = None
+        self._section_radius_gyration_y = None
+        self._section_radius_gyration_z = None
         self._h_w = None
         self._t_w = None
         self._b = None
@@ -269,7 +273,8 @@ class SteelBeam:
 
         area = section.get_area()
         ixx_c, iyy_c, ixy_c = section.get_ic()
-        zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
+        rx, ry = section.get_rc()
+        sxx, syy = section.get_s()
 
         j = None
         try:
@@ -282,8 +287,11 @@ class SteelBeam:
         self._section_inertia_y = float(ixx_c) * mm**4
         self._section_inertia_z = float(iyy_c) * mm**4
         self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
-        self._section_w_pl_y = float(max(abs(zxx_plus), abs(zxx_minus))) * mm**3
-        self._section_w_pl_z = float(max(abs(zyy_plus), abs(zyy_minus))) * mm**3
+        self._section_w_pl_y = float(sxx) * mm**3
+        self._section_w_pl_z = float(syy) * mm**3
+        self._section_radius_gyration_y = float(rx) * mm
+        self._section_radius_gyration_z = float(ry) * mm
+
 
         if geometry_dims:
             self._h_w = geometry_dims.get('h_w')
@@ -315,6 +323,8 @@ class SteelBeam:
             self._section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
             self._section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
             self._section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
+            self._section_radius_gyration_y = float(db_entry['i_y']) * mm
+            self._section_radius_gyration_z = float(db_entry['i_z']) * mm
             
             # Handling specific dimensions
             if target_value_type == 'CHS_SECTION':
@@ -386,6 +396,14 @@ class SteelBeam:
         self._section_inertia_torsional = self._normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
         self._section_w_pl_y = self._normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
         self._section_w_pl_z = self._normalize_to_si(section_w_pl_z, mm**3, 16387.064, 'section_modulus')
+        self._section_radius_gyration_y = (
+            (self._section_inertia_y / self._section_area) ** 0.5
+            if self._section_area and self._section_inertia_y else None
+        )
+        self._section_radius_gyration_z = (
+            (self._section_inertia_z / self._section_area) ** 0.5
+            if self._section_area and self._section_inertia_z else None
+        )
         self._h_w = self._normalize_to_si(h_w, mm, 25.4, 'length')
         self._t_w = self._normalize_to_si(t_w, mm, 25.4, 'length')
         self._b = self._normalize_to_si(b, mm, 25.4, 'length')
