@@ -43,7 +43,7 @@ def classify_section_AISC(self, cases:list[int], stress_type:str ='Axial Compres
     }
     _LIMIT_FACTORS_COMPRESSION = {
         1: 0.56,
-        2: 0.64,
+        2: None,
         3: 0.45,
         4: 0.75,
         5: 1.49,
@@ -97,8 +97,14 @@ def classify_section_AISC(self, cases:list[int], stress_type:str ='Axial Compres
                 't': _LAMBD_ACTUAL_COMPRESSION[case][1],
                 'lambd':_LAMBD_ACTUAL_COMPRESSION[case][0] / _LAMBD_ACTUAL_COMPRESSION[case][1]}
             
-            factor = _LIMIT_FACTORS_COMPRESSION[case]
-            lambd_r = factor * sqrt(self.elastic_modulus / self.f_yk)
+            factor_c = _LIMIT_FACTORS_COMPRESSION[case]
+
+            if factor_c is None:
+                results[case] = {'case_number': case, 'classification': 'Manual Required'}
+                verifications.append('Manual')
+                continue
+
+            lambd_r = factor_c * sqrt(self.elastic_modulus / self.f_yk)
             classification = 'Slender' if lambd_actual[case]['lambd'] > lambd_r else 'Non-Slender'
             verifications.append(classification)
             
@@ -106,16 +112,21 @@ def classify_section_AISC(self, cases:list[int], stress_type:str ='Axial Compres
                 'case_number': case,
                 'stress_type': stress_type,
                 'lambd_actual': round(float(lambd_actual[case]['lambd']), 3),
-                'lambd_r-AISC_factor': factor,
+                'lambd_r-AISC_factor': factor_c,
                 'lambd_r': round(float(lambd_r), 3),
                 'classification': classification
             }
     
     elif stress_type == 'Flexure':
         for case in cases:
-            lambd_p, lambd_r = _LIMIT_FACTORS_FLEXURE[case]
-            lambd_p_computed = lambd_p * sqrt(self.elastic_modulus / self.f_yk)
-            lambd_r_computed = lambd_r * sqrt(self.elastic_modulus / self.f_yk)
+            lambd_actual[case] = {'case':case,
+                'b': _LAMBD_ACTUAL_FLEXURE[case][0],
+                't': _LAMBD_ACTUAL_FLEXURE[case][1],
+                'lambd':_LAMBD_ACTUAL_FLEXURE[case][0] / _LAMBD_ACTUAL_FLEXURE[case][1]}
+            
+            factor_p, factor_r = _LIMIT_FACTORS_FLEXURE[case]
+            lambd_p_computed = factor_p * sqrt(self.elastic_modulus / self.f_yk)
+            lambd_r_computed = factor_r * sqrt(self.elastic_modulus / self.f_yk)
             
             if lambd_actual[case]['lambd'] <= lambd_p_computed:
                 classification = 'Compact'
@@ -128,11 +139,11 @@ def classify_section_AISC(self, cases:list[int], stress_type:str ='Axial Compres
             results[case] = {
                 'case_number': case,
                 'stress_type': stress_type,
-                'lambd_actual': lambd_actual[case]['lambd'],
-                'lambd_p_factor': lambd_p,
-                'lambd_r_factor': lambd_r,
-                'lambd_p': lambd_p_computed,
-                'lambd_r': lambd_r_computed,
+                'lambd_actual': round(float(lambd_actual[case]['lambd']),3),
+                'lambd_p_factor': factor_p,
+                'lambd_r_factor': factor_r,
+                'lambd_p': round(float(lambd_p_computed),3),
+                'lambd_r': round(float(lambd_r_computed),3),
                 'classification': classification
             }
     
@@ -190,7 +201,7 @@ def normal_force_compression(self, k = 1.0, render=False, preferred_units=None, 
     if not hasattr(self, 'section_classification'):
         raise ValueError("The section is not classified yet, please run first classify_section_AISC")
 
-    if self.section_classification == 'Non-Slender/Compact':
+    if self.section_classification == 'Non-Slender/Compact' or 'Manual':
 
         if render==False:
             p_0 = (self.section_area * self.f_yk).to_preferred(preferred_units)
