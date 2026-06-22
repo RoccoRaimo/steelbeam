@@ -18,9 +18,10 @@ import steelbeam as sb
 ## Why steelbeam?
 
 - **Code-agnostic**: Switch between Eurocode, AISC, and NBR with a single parameter
-- **Transparent calculations**: Every formula is rendered in LaTeX — no black boxes
+- **Transparent calculations**: Every formula is rendered in LaTeX using `handcalcs` library — no black boxes
 - **Jupyter-native**: Designed for interactive exploration in notebooks
-- **Multi-definition of geometry**: Pre-defined databases or user definition (manual values or using sectionproperties library)
+- **Multi-definition of geometry**: Pre-defined databases or user definition (manual values or using `sectionproperties` library)
+- **Ability to use units**: Use SI or Imperial units with the `pint` library implementation
 
 ## How it works
 
@@ -29,7 +30,6 @@ You can select an existing standard profile from the provided databases (current
 
 *Example with provided database*
 ![How it works](docs/images/image1.gif)
-
 
 
 ## Docs
