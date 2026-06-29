@@ -77,6 +77,8 @@ class SteelBeam:
         'section_inertia_y': 'inertia',
         'section_inertia_z': 'inertia',
         'section_inertia_torsional': 'inertia',
+        'section_w_el_y': 'section_modulus',
+        'section_w_el_z': 'section_modulus',
         'section_w_pl_y': 'section_modulus',
         'section_w_pl_z': 'section_modulus',
         'section_radius_gyration_y': 'length',
@@ -115,6 +117,8 @@ class SteelBeam:
                  section_inertia_y=0,
                  section_inertia_z=0,
                  section_inertia_torsional=0,
+                 section_w_el_y=0,
+                 section_w_el_z=0,
                  section_w_pl_y=0,
                  section_w_pl_z=0,
                  h_w=None,
@@ -227,6 +231,8 @@ class SteelBeam:
         self._section_inertia_y = None
         self._section_inertia_z = None
         self._section_inertia_torsional = None
+        self._section_w_el_y = None
+        self._section_w_el_z = None
         self._section_w_pl_y = None
         self._section_w_pl_z = None
         self._section_radius_gyration_y = None
@@ -245,6 +251,8 @@ class SteelBeam:
                     section_inertia_y=section_inertia_y,
                     section_inertia_z=section_inertia_z,
                     section_inertia_torsional=section_inertia_torsional,
+                    section_w_el_y=section_w_el_y,
+                    section_w_el_z=section_w_el_z,                    
                     section_w_pl_y=section_w_pl_y,
                     section_w_pl_z=section_w_pl_z,
                     h_w=h_w,
@@ -274,6 +282,7 @@ class SteelBeam:
         area = section.get_area()
         ixx_c, iyy_c, ixy_c = section.get_ic()
         rx, ry = section.get_rc()
+        zxx_plus, zxx_minus, zyy_plus, zyy_minus = section.get_z()
         sxx, syy = section.get_s()
 
         j = None
@@ -287,6 +296,8 @@ class SteelBeam:
         self._section_inertia_y = float(ixx_c) * mm**4
         self._section_inertia_z = float(iyy_c) * mm**4
         self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
+        self._section_w_el_y = min(float(zxx_plus),float(zxx_minus)) * mm**3
+        self._section_w_el_z = min(float(zyy_plus),float(zyy_minus)) * mm**3      
         self._section_w_pl_y = float(sxx) * mm**3
         self._section_w_pl_z = float(syy) * mm**3
         self._section_radius_gyration_y = float(rx) * mm
@@ -321,6 +332,8 @@ class SteelBeam:
             self._section_inertia_y = float(db_entry['Iy']) * mm**4
             self._section_inertia_z = float(db_entry.get('Iz', db_entry.get('Iy', 0))) * mm**4
             self._section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
+            self._section_w_el_y = min(float(db_entry['Wel_y_POS']), float(db_entry['Wel_y_NEG'])) * mm**3
+            self._section_w_el_z = min(float(db_entry['Wel_z_POS']), float(db_entry['Wel_z_NEG'])) * mm**3
             self._section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
             self._section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
             self._section_radius_gyration_y = float(db_entry['iy']) * mm
@@ -380,6 +393,8 @@ class SteelBeam:
         section_inertia_y,
         section_inertia_z,
         section_inertia_torsional,
+        section_w_el_y,
+        section_w_el_z,
         section_w_pl_y,
         section_w_pl_z,
         h_w,
@@ -394,6 +409,8 @@ class SteelBeam:
         self._section_inertia_y = self._normalize_to_si(section_inertia_y, mm**4, 416231.0597, 'inertia')
         self._section_inertia_z = self._normalize_to_si(section_inertia_z, mm**4, 416231.0597, 'inertia')
         self._section_inertia_torsional = self._normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
+        self._section_w_el_y = self._normalize_to_si(section_w_el_y, mm**3, 16387.064, 'section_modulus')
+        self._section_w_el_z = self._normalize_to_si(section_w_el_z, mm**3, 16387.064, 'section_modulus')
         self._section_w_pl_y = self._normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
         self._section_w_pl_z = self._normalize_to_si(section_w_pl_z, mm**3, 16387.064, 'section_modulus')
         self._section_radius_gyration_y = (

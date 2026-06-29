@@ -15,6 +15,10 @@ handcalcs.set_option("custom_symbols", {"C": ","})
 from math import pi
 from numpy import sqrt
 
+from . import units
+
+from dataclasses import dataclass
+
 
 # ==================== SECTION CLASSIFICATION ====================
 
@@ -230,3 +234,73 @@ def normal_force_compression(self, k = 1.0, render=False, preferred_units=None, 
                     P_n = 0.877 * P_e
                 P_r = phi_c * P_n; P_r = (phi_c * P_n).to_preferred(preferred_units)
             return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.length, self.section_radius_gyration_y, self.section_radius_gyration_z, k, phi_c)        
+
+@dataclass
+class LTBParams:
+    """
+    
+    Lateral-Torsional Buckling Parameters
+    
+
+
+    """
+    c: float = 1.0                         #Coefficient for section type
+    h_0: float = 1.0 * units.ureg.mm       #Distance between the flange centroids
+    c_b: float = 1.0                       #Lateral-Torsional Buckling Modification Factor
+    c_w: float = 1.0 * units.ureg.mm**6    #Warping Constant
+    
+
+def flexure_y(self, section_type = None, ltb_params: LTBParams = None, render=False, preferred_units=None, precision=2):
+    """
+
+    AISC 360-22 - § F
+    AASHTO LRFD 10th Ed. - § 6.10 DA AGGIUNGERE ALTRI CAPITOLI
+    
+    """
+    
+    _SECTION_TYPE = {
+        1: 'F2',
+        2: 'F3',
+        3: 'F4',
+        4: 'F5',
+        5: 'F6',
+        6: 'F7',
+        7: 'F8',
+        8: 'F9',
+        9: 'F10',
+        10: 'F11',
+        11: 'F12',
+    }
+
+    if section_type not in list(_SECTION_TYPE.values()):
+        raise ValueError(f"Section type must be one of {list(_SECTION_TYPE.values())}")
+    
+    params = LTBParams()
+    c_w = params.c_w
+    c = params.c
+    h_0 = params.h_0
+    c_b = params.c_b
+
+
+    if section_type == 'F2':
+        if render == False:
+            # Yielding
+            m_p = self.f_yk * self.section_w_pl_y
+
+            # Lateral-Torsional Buckling
+            l_b = self.length
+            l_p = 1.76 * self.section_radius_gyration_y * sqrt(self.elastic_modulus / self.f_yk)
+            r_ts = sqrt(sqrt(self.section_inertia_y * c_w) / self.section_w_el_y)
+            
+            l_r = 1.95 * r_ts * (self.elastic_modulus / (0.7 * self.f_yk)) * sqrt(((self.section_inertia_torsional * c) / (self.section_w_el_y * h_0)) + 
+                                                                                  sqrt(((self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0)))**2 + 6.76 *((0.7 * self.f_yk) / self.elastic_modulus)**2)
+            if l_b < l_p:
+                m_n = m_p
+            elif l_b >= l_p and l_b <= l_r:
+                m_n = c_b * (m_p - (m_p - 0.7*self.f_yk*self.section_w_el_y)*((l_b - l_p) / (l_r - l_p)))
+            elif l_b > l_r:
+                f_cr = (c_b * pi**2 * self.elastic_modulus / (l_b/r_ts)**2) * sqrt(1+0.078*(self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0) * (l_b / r_ts)**2)
+                m_n = f_cr * self.section_w_el_y
+
+            return m_n    
+            
