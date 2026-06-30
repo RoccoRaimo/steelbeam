@@ -15,6 +15,42 @@ handcalcs.set_option("custom_symbols", {"C": ","})
 from math import pi
 from numpy import sqrt
 
+# ----- CLASSIFICATION
+
+def classify_section_EC(self, cases:list[int], stress_type:str ='Compression'):
+    """
+
+    Section classification based on EC3 1993-1-1:2005 - § 5.5.
+
+    Parameters
+    case: number of the case defined in Tables, 1 to 21
+    stress_type: 'Compression', 'Bending' or 'Compression-Bending'
+    """
+
+    if stress_type not in ['Compression', 'Bending', 'Compression-Bending']:
+        raise ValueError("Stress type must be one of 'Compression', 'Bending' or 'Compression-Bending'")
+
+
+    _INTERNAL_COMPRESSION_PARTS = {
+        1: ((self.b/2), self.t_f),
+        2: (self.b, self.t_f),
+        3: (self.b, self.t_f),
+        4: (self.h_w, self.t_f),
+        5: (self.h_w, self.t_w),
+        6: ((self.b - 2*self.t_w), self.t_w),
+        7: (self.b, self.t_f),
+        8: (self.b, self.t_f),
+    }
+
+    valid_cases = list(_INTERNAL_COMPRESSION_PARTS.keys())
+    for case in cases:
+        if case not in valid_cases:
+            raise ValueError(f"Case {case} not valid")
+        
+    if stress_type == 'Compression':
+
+
+
 # ----- RESISTANCE
 
 def normal_force_tension(self, a_net=None, render=False, preferred_units=None, precision=3):

@@ -248,7 +248,18 @@ class LTBParams:
     h_0: float = 1.0 * units.ureg.mm       #Distance between the flange centroids
     c_b: float = 1.0                       #Lateral-Torsional Buckling Modification Factor
     c_w: float = 1.0 * units.ureg.mm**6    #Warping Constant
+
+@dataclass
+class FLBParams:
+    """
     
+    Flange Local Buckling Parameters
+    
+
+    """
+    local_buckling_type: str = 'Non-Compact'    # 'Non-Compact' or 'Slender'  
+
+
 
 def flexure_y(self, section_type = None, ltb_params: LTBParams = None, render=False, preferred_units=None, precision=2):
     """
@@ -275,12 +286,14 @@ def flexure_y(self, section_type = None, ltb_params: LTBParams = None, render=Fa
     if section_type not in list(_SECTION_TYPE.values()):
         raise ValueError(f"Section type must be one of {list(_SECTION_TYPE.values())}")
     
-    params = LTBParams()
-    c_w = params.c_w
-    c = params.c
-    h_0 = params.h_0
-    c_b = params.c_b
+    ltbparams = LTBParams()
+    c_w = ltbparams.c_w
+    c = ltbparams.c
+    h_0 = ltbparams.h_0
+    c_b = ltbparams.c_b
 
+    flbparams = FLBParams()
+    flb_type = flbparams.local_buckling_type
 
     if section_type == 'F2':
         if render == False:
@@ -291,16 +304,75 @@ def flexure_y(self, section_type = None, ltb_params: LTBParams = None, render=Fa
             l_b = self.length
             l_p = 1.76 * self.section_radius_gyration_y * sqrt(self.elastic_modulus / self.f_yk)
             r_ts = sqrt(sqrt(self.section_inertia_y * c_w) / self.section_w_el_y)
-            
             l_r = 1.95 * r_ts * (self.elastic_modulus / (0.7 * self.f_yk)) * sqrt(((self.section_inertia_torsional * c) / (self.section_w_el_y * h_0)) + 
                                                                                   sqrt(((self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0)))**2 + 6.76 *((0.7 * self.f_yk) / self.elastic_modulus)**2)
-            if l_b < l_p:
+            if l_b <= l_p:
                 m_n = m_p
-            elif l_b >= l_p and l_b <= l_r:
+            elif l_b > l_p and l_b <= l_r:
+                m_n = c_b * (m_p - (m_p - 0.7*self.f_yk*self.section_w_el_y)*((l_b - l_p) / (l_r - l_p)))
+            elif l_b > l_r:
+                f_cr = (c_b * pi**2 * self.elastic_modulus / (l_b/r_ts)**2) * sqrt(1+0.078*(self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0) * (l_b / r_ts)**2)
+                m_n = f_cr * self.section_w_el_y
+            return m_n   
+
+        elif render==True:
+            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+            def render_instance(f_yk, E, L, r_y, I_y, I_t, W_elCy, W_plCy, C_w, C_b):
+                M_p = f_yk * W_plCy
+                L_b = L
+                L_p = 1.76 * r_y * sqrt(E / f_yk)
+                r_ts = sqrt(sqrt(I_y * C_w) / W_elCy)
+                
+                L_r = 1.95 * r_ts * (E / (0.7 * f_yk)) * sqrt(((I_t * c) / (W_elCy * h_0)) + sqrt(((I_t * c)/ (W_elCy * h_0)))**2 + 6.76 *((0.7 * f_yk) / E)**2)
+                if L_b <= L_p:
+                    M_n = M_p
+                elif L_p < L_b <= L_r:
+                    M_n = C_b * (M_p - (M_p - 0.7*f_yk*W_elCy)*((L_b - L_p) / (L_r - L_p)))
+                elif L_b > L_r > L_p:
+                    F_cr = (C_b * pi**2 * E / (L_b/r_ts)**2) * sqrt(1+0.078*(I_t * c)/ (W_elCy * h_0) * (L_b / r_ts)**2)
+                    M_n = F_cr * W_elCy
+            return render_instance(self.f_yk, self.elastic_modulus, self.length, self.section_radius_gyration_y, self.section_inertia_y,self.section_inertia_torsional, self.section_w_el_y, self.section_w_pl_y, c_w, c_b)      
+            
+    if section_type == 'F3':
+        if render == False:
+            m_p = self.f_yk * self.section_w_pl_y
+            # Lateral-Torsional Buckling
+            l_b = self.length
+            l_p = 1.76 * self.section_radius_gyration_y * sqrt(self.elastic_modulus / self.f_yk)
+            r_ts = sqrt(sqrt(self.section_inertia_y * c_w) / self.section_w_el_y)
+            l_r = 1.95 * r_ts * (self.elastic_modulus / (0.7 * self.f_yk)) * sqrt(((self.section_inertia_torsional * c) / (self.section_w_el_y * h_0)) + 
+                                                                                  sqrt(((self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0)))**2 + 6.76 *((0.7 * self.f_yk) / self.elastic_modulus)**2)
+            if l_b <= l_p:
+                m_n = m_p
+            elif l_b > l_p and l_b <= l_r:
                 m_n = c_b * (m_p - (m_p - 0.7*self.f_yk*self.section_w_el_y)*((l_b - l_p) / (l_r - l_p)))
             elif l_b > l_r:
                 f_cr = (c_b * pi**2 * self.elastic_modulus / (l_b/r_ts)**2) * sqrt(1+0.078*(self.section_inertia_torsional * c)/ (self.section_w_el_y * h_0) * (l_b / r_ts)**2)
                 m_n = f_cr * self.section_w_el_y
 
-            return m_n    
+            #Compression Flange Local Buckling
+            lambd = self.b_f / (2*self.t_f)
             
+            if flb_type == 'Non-Compact':
+                m_n = m_p - (m_p - 0.7*self.f_yk*self.sectio_w_el_y) * ((lambd - lambd_pf) / (lambd_rf - lambd_pf))
+            elif flb_type == 'Slender':
+                m_n = 0.9 * self.elastic_modulus * k_c * self.section_w_el_y / lambd**2
+            return m_n
+
+        #elif render==True:
+        #    @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        #    def render_instance(f_yk, E, L, r_y, I_y, I_t, W_elCy, W_plCy, C_w, C_b):
+        #        M_p = f_yk * W_plCy
+        #        L_b = L
+        #        L_p = 1.76 * r_y * sqrt(E / f_yk)
+        #        r_ts = sqrt(sqrt(I_y * C_w) / W_elCy)
+        #        
+        #        L_r = 1.95 * r_ts * (E / (0.7 * f_yk)) * sqrt(((I_t * c) / (W_elCy * h_0)) + sqrt(((I_t * c)/ (W_elCy * h_0)))**2 + 6.76 *((0.7 * f_yk) / E)**2)
+        #        if L_b <= L_p:
+        #            M_n = M_p
+        #        elif L_p < L_b <= L_r:
+        #            M_n = C_b * (M_p - (M_p - 0.7*f_yk*W_elCy)*((L_b - L_p) / (L_r - L_p)))
+        #        elif L_b > L_r > L_p:
+        #            F_cr = (C_b * pi**2 * E / (L_b/r_ts)**2) * sqrt(1+0.078*(I_t * c)/ (W_elCy * h_0) * (L_b / r_ts)**2)
+        #            M_n = F_cr * W_elCy
+        #    return render_instance(self.f_yk, self.elastic_modulus, self.length, self.section_radius_gyration_y, self.section_inertia_y,self.section_inertia_torsional, self.section_w_el_y, self.section_w_pl_y, c_w, c_b)    
