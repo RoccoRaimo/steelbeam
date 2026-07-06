@@ -15,6 +15,8 @@ handcalcs.set_option("custom_symbols", {"C": ","})
 from math import pi
 from numpy import sqrt
 
+from .units import ureg
+
 # ----- CLASSIFICATION
 
 def classify_section_EC(self, cases:list[int], stress_type:str ='Compression'):
@@ -29,26 +31,109 @@ def classify_section_EC(self, cases:list[int], stress_type:str ='Compression'):
 
     if stress_type not in ['Compression', 'Bending', 'Compression-Bending']:
         raise ValueError("Stress type must be one of 'Compression', 'Bending' or 'Compression-Bending'")
+    
+    eps = sqrt(235 * ureg.MPa / self.f_yk)
 
-
-    _INTERNAL_COMPRESSION_PARTS = {
-        1: ((self.b/2), self.t_f),
-        2: (self.b, self.t_f),
-        3: (self.b, self.t_f),
-        4: (self.h_w, self.t_f),
+    _COMPRESSION_PARTS = {
+        1: (self.h_w, self.t_w),
+        2: (self.h_w, self.t_w),
+        3: (self.h_w, self.t_w),
+        4: (self.h_w, self.t_w),
         5: (self.h_w, self.t_w),
-        6: ((self.b - 2*self.t_w), self.t_w),
-        7: (self.b, self.t_f),
-        8: (self.b, self.t_f),
+        6: (self.h_w, self.t_w),
+        7: (self.h_w, self.t_w),
+        8: (self.h_w, self.t_w),
+        9: ((self.b - self.t_w)/2 , self.t_f),
+        10: (self.h_w, self.t_w),
+        11: (self.h_w, self.t_w),
+        12: (self.h_w, self.t_w),
+        13: (self.h_w, self.t_w),
+        14: (self.h_w, self.t_w)
     }
 
-    valid_cases = list(_INTERNAL_COMPRESSION_PARTS.keys())
+    _SLENDERNESS_LIMIT_RATIOS_COMPRESSION = {
+        1: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        2: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        3: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        4: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        5: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        6: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        7: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        8: {1:33*eps, 2: 38*eps, 3: 42*eps},
+        9: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        10: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        11: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        12: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        13: {1:15*eps, 2: 15*eps, 3: 15*eps},
+        14: {1:50*eps**2, 2: 70*eps**2, 3: 90*eps**2},
+    }
+
+    _SLENDERNESS_LIMIT_RATIOS_BENDING = {
+        1: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        2: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        3: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        4: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        5: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        6: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        7: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        8: {1:72*eps, 2: 83*eps, 3: 124*eps},
+        9: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        10: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        11: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        12: {1:9*eps, 2: 10*eps, 3: 14*eps},
+        13: {1:15*eps, 2: 15*eps, 3: 15*eps},
+        14: {1:50*eps**2, 2: 70*eps**2, 3: 90*eps**2},
+    }
+
+    valid_cases = list(_COMPRESSION_PARTS.keys())
     for case in cases:
         if case not in valid_cases:
             raise ValueError(f"Case {case} not valid")
-        
+
+    results = {}
+    verifications = []
+    slendernessratio_compression_internal = {}
+
     if stress_type == 'Compression':
 
+        for case in cases:
+            slendernessratio_compression_internal[case] = {'case':case,
+                'c': _COMPRESSION_PARTS[case][0],
+                't': _COMPRESSION_PARTS[case][1],
+                'slenderness ratio':_COMPRESSION_PARTS[case][0] / _COMPRESSION_PARTS[case][1]
+            }
+
+            if slendernessratio_compression_internal[case]['slenderness ratio'] <= _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][1]:
+                classification = 1
+            elif _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][1] < slendernessratio_compression_internal[case]['slenderness ratio'] <= _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][2]:
+                classification = 2
+            elif _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][2] < slendernessratio_compression_internal[case]['slenderness ratio'] <= _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][3]:
+                classification = 3
+            elif _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case][3] < slendernessratio_compression_internal[case]['slenderness ratio']:
+                classification = 4
+            verifications.append(classification)
+
+
+            results[case] = {
+                'case_number': case,
+                'stress_type': stress_type,
+                'slenderness limit ratios': {
+                    str(limit_class): round(float(value.magnitude), 3) 
+                    for limit_class, value in _SLENDERNESS_LIMIT_RATIOS_COMPRESSION[case].items()
+                },
+                'c': round(float(_COMPRESSION_PARTS[case][0].magnitude), 3),
+                't': round(float(_COMPRESSION_PARTS[case][1].magnitude), 3),
+                'slenderness ratio': round(float(slendernessratio_compression_internal[case]['slenderness ratio']), 3),
+                'classification': 'Class ' + str(classification)
+            }
+
+    # Determine overall classification (most restrictive)
+    overall_classification = 'Class: ' + str(min(verifications))
+    
+    self.section_classification = overall_classification
+    output = [results, 'Global Section ' + str(overall_classification)]
+
+    return output
 
 
 # ----- RESISTANCE
