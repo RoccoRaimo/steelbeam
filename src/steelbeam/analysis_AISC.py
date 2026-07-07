@@ -376,3 +376,53 @@ def flexure_y(self, section_type = None, ltb_params: LTBParams = None, render=Fa
         #            F_cr = (C_b * pi**2 * E / (L_b/r_ts)**2) * sqrt(1+0.078*(I_t * c)/ (W_elCy * h_0) * (L_b / r_ts)**2)
         #            M_n = F_cr * W_elCy
         #    return render_instance(self.f_yk, self.elastic_modulus, self.length, self.section_radius_gyration_y, self.section_inertia_y,self.section_inertia_torsional, self.section_w_el_y, self.section_w_pl_y, c_w, c_b)    
+
+    def shear_y(self, case:list[int], stiffeners='N', a:float=None, render=False, preferred_units=None, precision=2):
+        """
+
+        AISC 360-22 - § G
+        
+        """
+        phi_v = self._partial_factors.get('phi_shear')
+
+        if case == 1:
+            if self.h_w / self.t_w > 2.24* sqrt (self.elastic_modulus / self.f_yk):
+                raise ValueError("Possible phenomenon of buckling for web panels, please select case 2")
+            phi_v = 1.0
+            c_v1 = 1.0
+        
+        if case != 1:
+            if stiffeners == 'No':
+                k_v = 5.34
+            elif stiffeners == 'Yes':
+                if a/self.h_w > 3.0:
+                    k_v = 5.34
+                else:
+                    k_v = 5+(5/(a/self.h_w)**2)
+
+            if self.h_w / self.t_w <= 1.10* sqrt (k_v * self.elastic_modulus / self.f_yk):
+                c_v1 = 1.0
+            elif self.h_w / self.t_w > 1.10* sqrt (k_v * self.elastic_modulus / self.f_yk):
+                c_v1 = 1.10* sqrt (k_v * self.elastic_modulus / self.f_yk) / (self.h_W / self.t_w)
+
+        if render==False:
+            v_n = (0.6 * self.section_area_shear_y * self.f_yk * c_v1).to_preferred(preferred_units)
+            v_r = (phi_v * v_n).to_preferred(preferred_units)
+            return v_r
+
+        elif render==True:
+            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+            def render_instance(A, f_yk, E, L, r_y, r_z, k, phi_c):
+                """
+                """
+                P_0 = A * f_yk; P_0 = (A * f_yk).to_preferred(preferred_units)
+                P_eCy = (pi**2 * E * A) / (k * L / r_y)**2; P_eCy = ((pi**2 * E * A) / (k * L / r_y)**2).to_preferred(preferred_units)
+                P_eCz = (pi**2 * E * A) / (k * L / r_z)**2; P_eCz = ((pi**2 * E * A) / (k * L / r_z)**2).to_preferred(preferred_units)
+                P_e = min(P_eCy, P_eCz); P_e = (min(P_eCy, P_eCz)).to_preferred(preferred_units)
+                if P_0 / P_e <= 2.25:
+                    P_n = 0.658**(P_0 / P_e) * P_0
+                elif P_0 / P_e > 2.25:
+                    P_n = 0.877 * P_e
+                P_r = phi_c * P_n; P_r = (phi_c * P_n).to_preferred(preferred_units)
+            return render_instance(self.section_area, self.f_yk, self.elastic_modulus, self.length, self.section_radius_gyration_y, self.section_radius_gyration_z, k, phi_c)        
+

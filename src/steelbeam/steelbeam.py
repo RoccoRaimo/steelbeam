@@ -98,7 +98,7 @@ class SteelBeam:
         },
         'AISC': {
             'phi_flexure': 1.00,
-            'phi_shear': 1.00,
+            'phi_shear': 0.90,
             'phi_compression': 0.95,
             'phi_tension_yield': 0.95
         },
