@@ -50,7 +50,7 @@ def get_profiles_by_type(profile_type_name: str) -> list:
     Parameters
     ----------
     profile_type_name : str
-        The type of profile (e.g., 'IPE_SECTION', 'HE_SECTION', 'IPE_SECTION')
+        The type of profile (e.g., 'I_SECTION', 'L_SECTION', 'C_SECTION')
     
     Returns
     -------

@@ -265,8 +265,8 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
     """
     if a_net is None:
         a_net = self.section_area
-    gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
-    gamma_m2 = self._partial_factors.get('gamma_m2', 1.25)
+    gamma_m0 = self._partial_factors.get('gamma_m0')
+    gamma_m2 = self._partial_factors.get('gamma_m2')
 
     if render==False:
         n_pl = (self.section_area * self.f_yk / gamma_m0).to_preferred(preferred_units)
@@ -285,25 +285,34 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
         return render_instance(self.section_area, self.f_yk, a_net)
         
 
-def normal_force_compression(self, render = False, preferred_units=None, precision: int = 3):
+def normal_force_compression(self, override = 'No', render = False, preferred_units=None, precision: int = 3):
     """
 
     EC3 1993-1-1:2005 - § 6.2.4
     (ONLY CROSS-SECTIONS IN CLASS 1, 2 OR 3)
 
     """
-    gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
+    gamma_m0 = self._partial_factors.get('gamma_m0')
 
-    if render==False:
-        normal_force_compression = (self.section_area * self.f_yk / gamma_m0).to_preferred(preferred_units)
-        return normal_force_compression
-    elif render==True:
-        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-        def render_instance(A, f_yk):
-            """
-            """
-            N_cCRd = A * f_yk / gamma_m0; N_cCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
-        return render_instance(self.section_area, self.f_yk)  
+    if not hasattr(self, 'section_class') and override == 'No':
+        raise ValueError("The section is not classified yet, please run first classify_section_EC")
+
+    should_proceed = override == 'Yes' or getattr(self, 'section_class_compression', 999) <= 2
+    if should_proceed:
+
+        if render==False:
+            normal_force_compression = (self.section_area * self.f_yk / gamma_m0).to_preferred(preferred_units)
+            return normal_force_compression
+        elif render==True:
+            @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+            def render_instance(A, f_yk):
+                """
+                """
+                N_cCRd = A * f_yk / gamma_m0; N_cCRd = (A * f_yk / gamma_m0).to_preferred(preferred_units)
+            return render_instance(self.section_area, self.f_yk)  
+    
+    else:
+       raise ValueError(f"The section is in class {self.section_class_compression}. Please, proceed with manual calculation") 
 
 def bending_moment_y(self, render = False, preferred_units=None, precision: int = 3):
     """
@@ -312,7 +321,7 @@ def bending_moment_y(self, render = False, preferred_units=None, precision: int 
     (ONLY CROSS-SECTIONS IN CLASS 1 OR 2)
 
     """
-    gamma_m0 = self._partial_factors.get('gamma_m0', 1.05)
+    gamma_m0 = self._partial_factors.get('gamma_m0')
     if render==False:
         bending_moment_y = (self.section_w_pl_y * self.f_yk / gamma_m0).to_preferred(preferred_units)
         return bending_moment_y
