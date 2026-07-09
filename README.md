@@ -69,6 +69,9 @@ You can use the following documentation for initial understanding of library's c
 - `pint` — unit handling
 - `sectionproperties` (optional) — geometry section properties
 
+## Changelog
+See CHANGELOG.md for more information.
+
 ## Desktop Application (Coming Soon)
 
 While `steelbeam` is designed for interactive use in Jupyter notebooks, my aim is to build also a **standalone desktop application** that lets you perform the same calculations without writing code.
