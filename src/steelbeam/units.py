@@ -305,6 +305,7 @@ def get_section_properties(beam, units: str) -> dict:
         't_w': 'length',
         'b': 'length',
         't_f': 'length',
+        'r': 'length',
     }
 
     def get_val(attr):
@@ -332,6 +333,7 @@ def get_section_properties(beam, units: str) -> dict:
         't_w': get_val('t_w'),
         'b': get_val('b'),
         't_f': get_val('t_f'),
+        'r': get_val('r'),
         'units': units,
         'input_units': INPUT_UNITS[units],
     }

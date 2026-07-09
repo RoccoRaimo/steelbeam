@@ -87,6 +87,7 @@ class SteelBeam:
         't_w': 'length',
         'b': 'length',
         't_f': 'length',
+        'r': 'length',
     }
 
     # Define default partial factors for the national codes
@@ -125,6 +126,7 @@ class SteelBeam:
                  t_w=None,
                  b=None,
                  t_f=None,
+                 r=None,
                  section_properties_source='manual',
                  section_geometry=None,
                  section_mesh_size=100,
@@ -241,6 +243,7 @@ class SteelBeam:
         self._t_w = None
         self._b = None
         self._t_f = None
+        self._r = None
 
         if self.profile == 'User defined':
             if self._section_properties_source == 'manual':
@@ -259,6 +262,7 @@ class SteelBeam:
                     t_w=t_w,
                     b=b,
                     t_f=t_f,
+                    r=r,
                 )
             elif self._section_properties_source == 'sectionproperties':
                 self._load_from_sectionproperties()
@@ -338,7 +342,8 @@ class SteelBeam:
             self._section_w_pl_z = float(db_entry.get('Wpl_z', db_entry.get('Wpl_y', 0))) * mm**3
             self._section_radius_gyration_y = float(db_entry['iy']) * mm
             self._section_radius_gyration_z = float(db_entry['iz']) * mm
-            
+
+
             # Handling specific dimensions
             if target_value_type == 'CHS_SECTION':
                 self._h_w = float(db_entry['OD']) * mm
@@ -353,7 +358,8 @@ class SteelBeam:
                 self._t_f = float(db_entry['tf']) * mm
             else:
                 # I-sections and others
-                self._h_w = (float(db_entry['h']) - 2 * float(db_entry['tf'])) * mm
+                self._r = float(db_entry['r']) * mm
+                self._h_w = (float(db_entry['h']) - 2 * float(db_entry['tf']) - 2 * float(db_entry['r'])) * mm
                 self._t_w = float(db_entry['tw']) * mm
                 if target_value_type in ['L_SECTION', '2L_SECTION', '2C_SECTION']:
                     self._b = float(db_entry['b']) * mm
@@ -401,6 +407,7 @@ class SteelBeam:
         t_w,
         b,
         t_f,
+        r
     ):
         """Normalize section properties from user-defined input values."""
         self._section_area = self._normalize_to_si(section_area, mm**2, 645.16, 'area')
@@ -425,6 +432,7 @@ class SteelBeam:
         self._t_w = self._normalize_to_si(t_w, mm, 25.4, 'length')
         self._b = self._normalize_to_si(b, mm, 25.4, 'length')
         self._t_f = self._normalize_to_si(t_f, mm, 25.4, 'length')
+        self._r = self._normalize_to_si(r, mm, 25.4, 'length')
 
     # ==================== MAGIC METHODS & PROPERTIES ====================
     def __getattr__(self, name):
@@ -523,7 +531,8 @@ class SteelBeam:
             f"h_w={fmt(props['h_w'])} {self._unit_label('length')} | "
             f"t_w={fmt(props['t_w'])} {self._unit_label('length')} | "
             f"b={fmt(props['b'])} {self._unit_label('length')} | "
-            f"t_f={fmt(props['t_f'])} {self._unit_label('length')})"
+            f"t_f={fmt(props['t_f'])} {self._unit_label('length')} | "
+            f"r={fmt(props['r'])} {self._unit_label('length')}) "
         )
 
     # ==================== UNITS HANDLING ====================

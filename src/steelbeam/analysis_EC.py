@@ -43,7 +43,7 @@ def classify_section_EC(self, cases:list[int], stress_type:str ='Compression', a
         6: (self.h_w, self.t_w),
         7: (self.h_w, self.t_w),
         8: (self.h_w, self.t_w),
-        9: ((self.b - self.t_w)/2 , self.t_f),
+        9: ((self.b - self.t_w)/2 - self.r, self.t_f),
         10: (self.h_w, self.t_w),
         11: (self.h_w, self.t_w),
         12: (self.h_w, self.t_w),
