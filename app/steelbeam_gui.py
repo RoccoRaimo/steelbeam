@@ -10,12 +10,15 @@ from PySide6.QtWidgets import (
     QComboBox,
     QPushButton,
     QLabel,
-    QTextEdit,
     QVBoxLayout,
     QMessageBox,
     QGroupBox,
     QHBoxLayout,
+    QRadioButton,
+    QButtonGroup,
 )
+
+from PySide6.QtWebEngineWidgets import QWebEngineView
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -24,11 +27,12 @@ if str(SRC) not in sys.path:
 
 from steelbeam import SteelBeam, get_profiles_by_type
 
+import utils
 
 class SteelBeamApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("steelbeam GUI")
+        self.setWindowTitle("steelbeam")
         self.resize(800, 650)
 
         self.central = QWidget(self)
@@ -36,12 +40,35 @@ class SteelBeamApp(QMainWindow):
 
         main_layout = QVBoxLayout(self.central)
 
-        input_group = QGroupBox("Dati beam")
+        input_group = QGroupBox("Beam geometry")
         input_layout = QVBoxLayout(input_group)
+
+        # Manual or Database selection
+        mode_layout = QHBoxLayout()
+        
+        self.db_radio = QRadioButton("Database")
+        self.db_radio.setChecked(True)
+        
+        self.manual_radio = QRadioButton("Manual")
+        
+        self.mode_group = QButtonGroup(self)
+        self.mode_group.addButton(self.db_radio)
+        self.mode_group.addButton(self.manual_radio)
+        
+        mode_layout.addWidget(self.db_radio)
+        mode_layout.addWidget(self.manual_radio)
+        mode_layout.addStretch()
+        
+        input_layout.addLayout(mode_layout)
+        
+        # Visual separator
+        input_layout.addWidget(QLabel(""))
+
         form = QFormLayout()
 
+        # Input lines for beam geometry
         self.code_combo = QComboBox()
-        self.code_combo.addItems(["EC", "AISC", "NBR"])
+        self.code_combo.addItems(["EC", "AISC"])
         self.code_combo.setCurrentText("EC")
 
         self.length_edit = QLineEdit("6.0")
@@ -56,9 +83,9 @@ class SteelBeamApp(QMainWindow):
         self.w_pl_z_edit = QLineEdit("125000")
         self.profile_combo = QComboBox()
         self.profile_combo.addItems(get_profiles_by_type("I_SECTION")[:50])
-        self.profile_combo.setCurrentText("IPE300")
+        self.profile_combo.setCurrentText("")
 
-        form.addRow("Codice", self.code_combo)
+        form.addRow("Analysis code", self.code_combo)
         form.addRow("Profile", self.profile_combo)
         form.addRow("Length [m]", self.length_edit)
         form.addRow("Elastic modulus [MPa]", self.elastic_modulus_edit)
@@ -73,27 +100,90 @@ class SteelBeamApp(QMainWindow):
         input_layout.addLayout(form)
 
         button_row = QHBoxLayout()
-        self.calculate_button = QPushButton("Calcola")
+        self.calculate_button = QPushButton("Run calculation")
         self.calculate_button.clicked.connect(self.run_calculation)
         button_row.addWidget(self.calculate_button)
         button_row.addStretch()
         input_layout.addLayout(button_row)
 
-        self.result_box = QTextEdit()
-        self.result_box.setReadOnly(True)
-        self.result_box.setPlainText("Compila i valori e premi Calcola.")
-
         main_layout.addWidget(input_group)
-        main_layout.addWidget(QLabel("Risultato"))
+
+        main_layout.addWidget(QLabel("Results"))
+
+        self.result_box = QWebEngineView(self.central)
+        self.result_box.setMinimumHeight(400)
         main_layout.addWidget(self.result_box)
+        
+
+        self.db_radio.toggled.connect(self._on_mode_changed)
+        self.manual_radio.toggled.connect(self._on_mode_changed)
+        self.profile_combo.currentTextChanged.connect(self._on_profile_changed)
+        
+
+        self._update_field_editability()
+
+    def _on_mode_changed(self):
+        """Manages mode switching"""
+        self._update_field_editability()
+        
+    def _on_profile_changed(self, profile_name):
+        """Handles the selection of the profile from the database"""
+        if self.db_radio.isChecked():
+            self._load_profile_data(profile_name)
+        self._update_field_editability()
+        
+    def _load_profile_data(self, profile_name):
+        """Load the data from the profile by instantiating a temporary SteelBeam"""
+        try:
+            beam = SteelBeam(
+                length=1.0,                  # placeholder
+                elastic_modulus=210000,      # placeholder
+                f_yk=355,                   # placeholder
+                profile=profile_name,
+            )
+            
+            # Populate the fields with the object’s actual attributes
+            self.area_edit.setText(str(beam.section_area.magnitude))
+            self.area_shear_y_edit.setText(str(beam.section_area_shear_y.magnitude))
+            self.area_shear_z_edit.setText(str(beam.section_area_shear_z.magnitude))
+            self.inertia_y_edit.setText(str(beam.section_inertia_y.magnitude))
+            self.inertia_z_edit.setText(str(beam.section_inertia_z.magnitude))
+            self.w_pl_y_edit.setText(str(beam.section_w_pl_y.magnitude))
+            self.w_pl_z_edit.setText(str(beam.section_w_pl_z.magnitude))
+            
+        except Exception as exc:
+            QMessageBox.warning(self, "Warning", f"Error in loading the profile: {exc}")
+
+    def _update_field_editability(self):
+        """Enable/disable fields depending on the mode"""
+        is_manual = self.manual_radio.isChecked()
+        
+        self.length_edit.setEnabled(is_manual)
+        self.elastic_modulus_edit.setEnabled(is_manual)
+        self.f_yk_edit.setEnabled(is_manual)
+        self.area_edit.setEnabled(is_manual)
+        self.area_shear_y_edit.setEnabled(is_manual)
+        self.area_shear_z_edit.setEnabled(is_manual)
+        self.inertia_y_edit.setEnabled(is_manual)
+        self.inertia_z_edit.setEnabled(is_manual)
+        self.w_pl_y_edit.setEnabled(is_manual)
+        self.w_pl_z_edit.setEnabled(is_manual)
+        
+        # The profile drop-down menu is always enabled, but it only makes sense in the Database
+        self.profile_combo.setEnabled(not is_manual)
 
     def run_calculation(self):
         try:
+            # Check that the data is consistent
+            if self.db_radio.isChecked():
+                if not self.profile_combo.currentText():
+                    raise ValueError("Select a profile from the database")
+                
             beam = SteelBeam(
                 length=float(self.length_edit.text()),
                 elastic_modulus=float(self.elastic_modulus_edit.text()),
                 f_yk=float(self.f_yk_edit.text()),
-                profile=self.profile_combo.currentText(),
+                profile=self.profile_combo.currentText() if not self.manual_radio.isChecked() else "User defined",
                 section_area=float(self.area_edit.text()),
                 section_area_shear_y=float(self.area_shear_y_edit.text()),
                 section_area_shear_z=float(self.area_shear_z_edit.text()),
@@ -103,29 +193,39 @@ class SteelBeamApp(QMainWindow):
                 section_w_pl_z=float(self.w_pl_z_edit.text()),
                 units="SI",
             )
-            code = self.code_combo.currentText()
-            beam.analysis(code)
+            beam.analysis(self.code_combo.currentText())
 
-            if code == "EC":
-                result = beam.bending_moment_y()
-                detail = f"bending_moment_y: {result}"
-            elif code == "AISC":
-                result = beam.normal_force_tension()
-                detail = f"normal_force_tension: {result}"
-            else:
-                result = beam.bending_moment_y()
-                detail = f"bending_moment_y (NBR placeholder): {result}"
+            latex_clean = utils.clean_handcalcs_latex(beam.normal_force_tension(render=True))
 
-            self.result_box.setPlainText(
-                f"Codice: {code}\n"
-                f"Profilo: {beam.profile}\n"
-                f"Lunghezza: {beam.length} m\n"
-                f"Area: {beam.section_area} mm²\n"
-                f"{detail}"
-            )
+            html_content = f"""<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <script id="MathJax-script" async
+                    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+                </script>
+                <style>
+                    body {{ font-family: Arial, sans-serif; padding: 20px; margin: 0; }}
+                    h2 {{ color: #6d4aff; margin-bottom: 15px; }}
+                    .calc-section {{
+                        background: white; padding: 25px; border-radius: 8px;
+                        border-left: 4px solid #6d4aff; overflow-x: auto;
+                    }}
+                    mjx-container {{ font-size: 110% !important; }}
+                </style>
+            </head>
+            <body>
+                <h2>Calculation results</h2>
+                <div class="calc-section">
+                    $$ {latex_clean} $$
+                </div>
+            </body>
+            </html>"""
+
+            self.result_box.setHtml(html_content)
+
         except Exception as exc:
             QMessageBox.critical(self, "Errore", str(exc))
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

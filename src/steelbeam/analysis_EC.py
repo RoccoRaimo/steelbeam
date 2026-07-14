@@ -17,6 +17,8 @@ from numpy import sqrt
 
 from .units import ureg
 
+import inspect
+
 # ----- CLASSIFICATION
 
 def classify_section_EC(self, cases:list[int], stress_type:str ='Compression', alpha = 0, psi = 0):
@@ -275,7 +277,8 @@ def normal_force_tension(self, a_net=None, render=False, preferred_units=None, p
         return normal_force_tension
         
     elif render==True:
-        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
+        is_jupyter = any('ipykernel' in str(frame.filename) for frame in inspect.stack())
+        @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=is_jupyter)
         def render_instance(A, f_yk, A_net):
             """
             """
