@@ -25,13 +25,16 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from steelbeam import SteelBeam, get_profiles_by_type
+from steelbeam import SteelBeam, profile_type, get_profiles_by_type
 
 import utils
 
 class SteelBeamApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        ##----CONSTRUCTION OF THE GUI----
+
         self.setWindowTitle("steelbeam")
         self.resize(800, 650)
 
@@ -40,6 +43,7 @@ class SteelBeamApp(QMainWindow):
 
         main_layout = QVBoxLayout(self.central)
 
+        # Group 'Beam geometry'
         input_group = QGroupBox("Beam geometry")
         input_layout = QVBoxLayout(input_group)
 
@@ -74,19 +78,32 @@ class SteelBeamApp(QMainWindow):
         self.length_edit = QLineEdit("6.0")
         self.elastic_modulus_edit = QLineEdit("210000")
         self.f_yk_edit = QLineEdit("355")
-        self.area_edit = QLineEdit("5380")
-        self.area_shear_y_edit = QLineEdit("2675")
-        self.area_shear_z_edit = QLineEdit("2130")
-        self.inertia_y_edit = QLineEdit("83560000")
-        self.inertia_z_edit = QLineEdit("6040000")
-        self.w_pl_y_edit = QLineEdit("628000")
-        self.w_pl_z_edit = QLineEdit("125000")
-        self.profile_combo = QComboBox()
-        self.profile_combo.addItems(get_profiles_by_type("I_SECTION")[:50])
-        self.profile_combo.setCurrentText("")
+        self.area_edit = QLineEdit("")
+        self.area_shear_y_edit = QLineEdit("")
+        self.area_shear_z_edit = QLineEdit("")
+        self.inertia_y_edit = QLineEdit("")
+        self.inertia_z_edit = QLineEdit("")
+        self.w_pl_y_edit = QLineEdit("")
+        self.w_pl_z_edit = QLineEdit("")
+
+
+        # Database profile selection
+        self.profile_type = QComboBox()
+        self.profile_type.addItems(profile_type)
+
+        self.profile_designation = QComboBox()
+        self.profile_designation.clear()
+
+        # ----POPULATION OF ALL THE FIELDS -----
+        
+        self.profile_type.currentTextChanged.connect(self._on_profile_type_changed)
+        initial_selection = self.profile_type.currentText()
+        if initial_selection:
+            self._update_profiles(initial_selection)
 
         form.addRow("Analysis code", self.code_combo)
-        form.addRow("Profile", self.profile_combo)
+        form.addRow("Profile type", self.profile_type)
+        form.addRow("Profile designation", self.profile_designation)
         form.addRow("Length [m]", self.length_edit)
         form.addRow("Elastic modulus [MPa]", self.elastic_modulus_edit)
         form.addRow("Yield strength [MPa]", self.f_yk_edit)
@@ -114,16 +131,16 @@ class SteelBeamApp(QMainWindow):
         self.result_box.setMinimumHeight(400)
         main_layout.addWidget(self.result_box)
         
-
         self.db_radio.toggled.connect(self._on_mode_changed)
         self.manual_radio.toggled.connect(self._on_mode_changed)
-        self.profile_combo.currentTextChanged.connect(self._on_profile_changed)
+        self.profile_designation.currentTextChanged.connect(self._on_profile_changed)
         
-
         self._update_field_editability()
 
     def _on_mode_changed(self):
-        """Manages mode switching"""
+        """Manages mode switching:
+        'Database' or 'Manual'
+        """
         self._update_field_editability()
         
     def _on_profile_changed(self, profile_name):
@@ -133,7 +150,7 @@ class SteelBeamApp(QMainWindow):
         self._update_field_editability()
         
     def _load_profile_data(self, profile_name):
-        """Load the data from the profile by instantiating a temporary SteelBeam"""
+        """Load the data from the profile by instantiating a temporary SteelBeam object"""
         try:
             beam = SteelBeam(
                 length=1.0,                  # placeholder
@@ -141,7 +158,6 @@ class SteelBeamApp(QMainWindow):
                 f_yk=355,                   # placeholder
                 profile=profile_name,
             )
-            
             # Populate the fields with the object’s actual attributes
             self.area_edit.setText(str(beam.section_area.magnitude))
             self.area_shear_y_edit.setText(str(beam.section_area_shear_y.magnitude))
@@ -150,7 +166,6 @@ class SteelBeamApp(QMainWindow):
             self.inertia_z_edit.setText(str(beam.section_inertia_z.magnitude))
             self.w_pl_y_edit.setText(str(beam.section_w_pl_y.magnitude))
             self.w_pl_z_edit.setText(str(beam.section_w_pl_z.magnitude))
-            
         except Exception as exc:
             QMessageBox.warning(self, "Warning", f"Error in loading the profile: {exc}")
 
@@ -170,20 +185,35 @@ class SteelBeamApp(QMainWindow):
         self.w_pl_z_edit.setEnabled(is_manual)
         
         # The profile drop-down menu is always enabled, but it only makes sense in the Database
-        self.profile_combo.setEnabled(not is_manual)
+        self.profile_designation.setEnabled(not is_manual)
+
+    def _on_profile_type_changed(self, selected_text):
+        if selected_text:
+            self._update_profiles(selected_text)
+        else:
+            self.profile_designation.clear()
+
+    def _update_profiles(self, profile_type_text):
+        """Update the profiles based on the selected type"""
+        self.profile_designation.blockSignals(True)  # Avoid loops during the update
+        self.profile_designation.clear()
+        profiles = get_profiles_by_type(profile_type_text)  # Make sure this returns a valid list
+        if profiles:
+            self.profile_designation.addItems(profiles)
+        self.profile_designation.blockSignals(False)
 
     def run_calculation(self):
         try:
             # Check that the data is consistent
             if self.db_radio.isChecked():
-                if not self.profile_combo.currentText():
+                if not self.profile_designation.currentText():
                     raise ValueError("Select a profile from the database")
                 
             beam = SteelBeam(
                 length=float(self.length_edit.text()),
                 elastic_modulus=float(self.elastic_modulus_edit.text()),
                 f_yk=float(self.f_yk_edit.text()),
-                profile=self.profile_combo.currentText() if not self.manual_radio.isChecked() else "User defined",
+                profile=self.profile_designation.currentText() if not self.manual_radio.isChecked() else "User defined",
                 section_area=float(self.area_edit.text()),
                 section_area_shear_y=float(self.area_shear_y_edit.text()),
                 section_area_shear_z=float(self.area_shear_z_edit.text()),
