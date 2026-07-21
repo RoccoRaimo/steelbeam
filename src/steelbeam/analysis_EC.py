@@ -18,6 +18,7 @@ from numpy import sqrt
 from .units import ureg
 
 import inspect
+import warnings
 
 # ----- CLASSIFICATION
 
@@ -534,7 +535,7 @@ def normal_force_buckling(self, buckling_curve: str, render = False, preferred_u
                 """
                 Phi = 0.5*(1+alpha*(lamb-0.2)+lamb**2)
                 chi = 1/ (Phi+sqrt(Phi**2 - lamb**2))
-                N_bcRd = chi * A * f_yk / gamma_m1; N_bcRd = (chi * A * f_yk / gamma_m1).to_preferred(preferred_units)
+                N_bCRd = chi * A * f_yk / gamma_m1; N_bCRd = (chi * A * f_yk / gamma_m1).to_preferred(preferred_units)
             return render_instance(self.section_area, self.f_yk, alpha, lambd)
 
 
@@ -545,6 +546,10 @@ def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
     EC3 1993-1-1:2005 - § 6.3.2
   
     """
+
+    if self.section_warping_constant == None:
+        raise warnings.warn("The warping constant has not been defined, so the calculation has been carried out without considering warping constant")
+    
     gamma_m1 = self._partial_factors.get('gamma_m0', 1.10)
     imperfection_factors = {
     'a': 0.21,
@@ -555,9 +560,14 @@ def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
     alpha_lt = imperfection_factors.get(buckling_curve_lt)
     l_cr = self.length * beta
     lamb_lt_0 = 0.2
+
     if render==False:
-        # Approximation without taking warping stiffness into account
-        m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_y * self.shear_modulus * self.section_inertia_torsional)
+        k = l_cr * sqrt((self.shear_modulus * self.section_inertia_torsional) / (self.elastic_modulus * self.section_warping_constant))
+        if self.section_warping_constant == None:
+            m_cr = (psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_z * self.shear_modulus * self.section_inertia_torsional)).to_preferred(preferred_units)
+        else:
+            # Critical bending moment calculated as per elastic theory (torsional and warping effects)
+            m_cr = (psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_z * self.shear_modulus * self.section_inertia_torsional) * sqrt(1 + (pi**2 / k**2))).to_preferred(preferred_units)
         lambd_lt = sqrt(self.section_w_pl_y* self.f_yk/m_cr)
         phi_lt = 0.5*(1+alpha_lt*(lambd_lt-lamb_lt_0)+beta*lambd_lt**2)
         f = 1-0.5*(1-k_c)*(1-2*(lambd_lt-0.8)**2)
@@ -566,16 +576,17 @@ def bending_moment_buckling_y(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
         return M_bRd
     elif render==True:
         @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-        def render_instance(f_yk, E, G, I_y, I_T, W_plCy, L_cr, alpha_LT, lamb_LTc0):
+        def render_instance(f_yk, E, G, I_z, I_T, I_w, W_plCy, L_cr, alpha_LT, lamb_LTc0):
             """
             """
-            M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T)
+            if I_w == None: M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T)
+            elif I_w != None: k = L_cr * sqrt((G * I_T) / (E * I_w)) ; M_cr = (psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T) * sqrt(1+ (pi**2 / k**2))).to_preferred(preferred_units)
             lamb_LT = sqrt(W_plCy* f_yk/M_cr)
             phi_LT = 0.5*(1+alpha_LT*(lamb_LT-lamb_LTc0)+beta*lamb_LT**2)
             f = 1-0.5*(1-k_c)*(1-2*(lamb_LT-0.8)**2)
             chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lamb_LT**2)))
             M_bCRd = chi_LT * W_plCy * f_yk / gamma_m1; M_bCRd = (chi_LT * W_plCy * f_yk / gamma_m1).to_preferred(preferred_units)
-        return render_instance(self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
+        return render_instance(self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_z, self.section_inertia_torsional, self.section_warping_constant, self.section_w_pl_y, l_cr, alpha_lt, lamb_lt_0)
         
 
 def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckling_curve_lt: str = 'a', beta:float = 1.0, render = False, preferred_units=None, precision: int = 3):
@@ -583,8 +594,12 @@ def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
     
     Buckling resistance for uniform members in bending with action along z axis
     EC3 1993-1-1:2005 - § 6.3.2
-
+  
     """
+
+    if self.section_warping_constant == None:
+        raise warnings.warn("The warping constant has not been defined, so the calculation has been carried out without considering warping constant")
+    
     gamma_m1 = self._partial_factors.get('gamma_m0', 1.10)
     imperfection_factors = {
     'a': 0.21,
@@ -595,9 +610,14 @@ def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
     alpha_lt = imperfection_factors.get(buckling_curve_lt)
     l_cr = self.length * beta
     lamb_lt_0 = 0.2
+
     if render==False:
-        # Approximation without taking warping stiffness into account
-        m_cr = psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_z * self.shear_modulus * self.section_inertia_torsional)
+        k = l_cr * sqrt((self.shear_modulus * self.section_inertia_torsional) / (self.elastic_modulus * self.section_warping_constant))
+        if self.section_warping_constant == None:
+            m_cr = (psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_y * self.shear_modulus * self.section_inertia_torsional)).to_preferred(preferred_units)
+        else:
+            # Critical bending moment calculated as per elastic theory (torsional and warping effects)
+            m_cr = (psi_1 * (pi/l_cr) * sqrt(self.elastic_modulus * self.section_inertia_y * self.shear_modulus * self.section_inertia_torsional) * sqrt(1 + (pi**2 / k**2))).to_preferred(preferred_units)
         lambd_lt = sqrt(self.section_w_pl_z* self.f_yk/m_cr)
         phi_lt = 0.5*(1+alpha_lt*(lambd_lt-lamb_lt_0)+beta*lambd_lt**2)
         f = 1-0.5*(1-k_c)*(1-2*(lambd_lt-0.8)**2)
@@ -606,13 +626,14 @@ def bending_moment_buckling_z(self, psi_1:float = 1.0 , k_c: float = 1.0, buckli
         return M_bRd
     elif render==True:
         @handcalc(override= "", precision= precision, left= "", right= "", jupyter_display=True)
-        def render_instance(f_yk, E, G, I_z, I_T, W_plCz, L_cr, alpha_LT, lamb_LTc0):
+        def render_instance(f_yk, E, G, I_y, I_T, I_w, W_plCz, L_cr, alpha_LT, lamb_LTc0):
             """
             """
-            M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_z * G * I_T)
+            if I_w == None: M_cr = psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T)
+            elif I_w != None: k = L_cr * sqrt((G * I_T) / (E * I_w)) ; M_cr = (psi_1 * (pi/L_cr) * sqrt(E * I_y * G * I_T) * sqrt(1+ (pi**2 / k**2))).to_preferred(preferred_units)
             lamb_LT = sqrt(W_plCz* f_yk/M_cr)
-            phi_LT = 0.5*(1+alpha_LT*(lamb_LT - lamb_LTc0)+beta*lamb_LT**2)
+            phi_LT = 0.5*(1+alpha_LT*(lamb_LT-lamb_LTc0)+beta*lamb_LT**2)
             f = 1-0.5*(1-k_c)*(1-2*(lamb_LT-0.8)**2)
             chi_LT = (1/f)* (1/ (phi_LT+sqrt(phi_LT**2 - beta*lamb_LT**2)))
             M_bCRd = chi_LT * W_plCz * f_yk / gamma_m1; M_bCRd = (chi_LT * W_plCz * f_yk / gamma_m1).to_preferred(preferred_units)
-        return render_instance(self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_z, self.section_inertia_torsional, self.section_w_pl_z, l_cr, alpha_lt, lamb_lt_0)
+        return render_instance(self.f_yk, self.elastic_modulus, self.shear_modulus, self.section_inertia_y, self.section_inertia_torsional, self.section_warping_constant, self.section_w_pl_z, l_cr, alpha_lt, lamb_lt_0)

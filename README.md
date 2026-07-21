@@ -70,7 +70,7 @@ You can use the following documentation for initial understanding of library's c
 - `sectionproperties` (optional) — geometry section properties
 
 ## Changelog
-See CHANGELOG.md for more information.
+See [CHANGELOG.md](https://github.com/RoccoRaimo/steelbeam/blob/main/CHANGELOG.md) for more information.
 
 ## Desktop Application (Coming Soon)
 

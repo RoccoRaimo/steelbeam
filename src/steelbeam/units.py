@@ -56,6 +56,7 @@ UNIT_FACTORS = {
         'length': 1000.0,              # m → mm
         'area': 1e6,                   # m² → mm²
         'inertia': 1e12,               # m⁴ → mm⁴
+        'warping': 1e18,               # m⁶ → mm⁶
         'section_modulus': 1e9,        # m³ → mm³
         'stress': 1e-6,                # Pa → MPa
         'force': 1.0,                  # N → N
@@ -66,6 +67,7 @@ UNIT_FACTORS = {
         'length': 1.0 / 0.0254,        # m → in
         'area': 1.0 / 0.00064516,      # m² → in²
         'inertia': (1.0 / 0.0254) ** 4, # m⁴ → in⁴
+        'warping': (1.0 / 0.0254) ** 6, # m⁶ → in⁶
         'section_modulus': (1.0 / 0.0254) ** 3,  # m³ → in³
         'stress': 1e-6 / 6.894757293168361,  # Pa → ksi
         'force': 1.0 / 4.4482216152605,         # N → lbf
@@ -80,6 +82,7 @@ UNIT_LABELS = {
         'length': 'mm',
         'area': 'mm²',
         'inertia': 'mm⁴',
+        'warping': 'mm⁶',
         'section_modulus': 'mm³',
         'stress': 'MPa',
         'force': 'N',
@@ -90,6 +93,7 @@ UNIT_LABELS = {
         'length': 'in',
         'area': 'in²',
         'inertia': 'in⁴',
+        'warping': 'in⁶',
         'section_modulus': 'in³',
         'stress': 'ksi',
         'force': 'lbf',
@@ -104,6 +108,7 @@ INPUT_UNITS = {
         'length': 'm',
         'area': 'mm²',
         'inertia': 'mm⁴',
+        'warping': 'mm⁶',
         'section_modulus': 'mm³',
         'stress': 'MPa',
         'force': 'N',
@@ -114,6 +119,7 @@ INPUT_UNITS = {
         'length': 'in',
         'area': 'in²',
         'inertia': 'in⁴',
+        'warping': 'in⁶',
         'section_modulus': 'in³',
         'stress': 'ksi',
         'force': 'lbf',
@@ -147,6 +153,7 @@ def create_quantity_from_input(value, unit_system: str, quantity_type: str) -> Q
         'length': 'm' if unit_system == 'SI' else 'inch',
         'area': 'mm**2' if unit_system == 'SI' else 'inch**2',
         'inertia': 'mm**4' if unit_system == 'SI' else 'inch**4',
+        'warping': 'mm**6' if unit_system == 'SI' else 'inch**6',
         'section_modulus': 'mm**3' if unit_system == 'SI' else 'inch**3',
         'stress': 'MPa' if unit_system == 'SI' else 'ksi',
         'force': 'N' if unit_system == 'SI' else 'lbf',
@@ -167,6 +174,7 @@ DISPLAY_UNITS = {
         'length': 'mm',
         'area': 'mm**2',
         'inertia': 'mm**4',
+        'warping': 'mm**6',
         'section_modulus': 'mm**3',
         'stress': 'MPa',
         'force': 'N',
@@ -177,6 +185,7 @@ DISPLAY_UNITS = {
         'length': 'inch',
         'area': 'inch**2',
         'inertia': 'inch**4',
+        'warping': 'inch**6',
         'section_modulus': 'inch**3',
         'stress': 'ksi',
         'force': 'lbf',
@@ -299,6 +308,7 @@ def get_section_properties(beam, units: str) -> dict:
         'section_inertia_y': 'inertia',
         'section_inertia_z': 'inertia',
         'section_inertia_torsional': 'inertia',
+        'section_warping_constant': 'warping',
         'section_w_pl_y': 'section_modulus',
         'section_w_pl_z': 'section_modulus',
         'h_w': 'length',
@@ -327,6 +337,7 @@ def get_section_properties(beam, units: str) -> dict:
         'section_inertia_y': get_val('section_inertia_y'),
         'section_inertia_z': get_val('section_inertia_z'),
         'section_inertia_torsional': get_val('section_inertia_torsional'),
+        'section_warping_constant': get_val('section_warping_constant'),
         'section_w_pl_y': get_val('section_w_pl_y'),
         'section_w_pl_z': get_val('section_w_pl_z'),
         'h_w': get_val('h_w'),
