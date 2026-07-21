@@ -28,6 +28,8 @@ import inspect
 import pint
 from pathlib import Path
 
+from IPython.display import display, HTML
+
 
 # Import the database of steel profiles
 dirname = os.path.dirname(__file__)
@@ -77,6 +79,7 @@ class SteelBeam:
         'section_inertia_y': 'inertia',
         'section_inertia_z': 'inertia',
         'section_inertia_torsional': 'inertia',
+        'section_warping_constant': 'warping',
         'section_w_el_y': 'section_modulus',
         'section_w_el_z': 'section_modulus',
         'section_w_pl_y': 'section_modulus',
@@ -118,6 +121,7 @@ class SteelBeam:
                  section_inertia_y=0,
                  section_inertia_z=0,
                  section_inertia_torsional=0,
+                 section_warping_constant=0,
                  section_w_el_y=0,
                  section_w_el_z=0,
                  section_w_pl_y=0,
@@ -144,7 +148,6 @@ class SteelBeam:
                 ['I_SECTION',
                 'L_SECTION',
                 'C_SECTION',
-                'T_SECTION',
                 'CHS_SECTION',
                 'RHS_SECTION',
                 '2L_SECTION',
@@ -233,6 +236,7 @@ class SteelBeam:
         self._section_inertia_y = None
         self._section_inertia_z = None
         self._section_inertia_torsional = None
+        self._section_warping_constant = None
         self._section_w_el_y = None
         self._section_w_el_z = None
         self._section_w_pl_y = None
@@ -254,6 +258,7 @@ class SteelBeam:
                     section_inertia_y=section_inertia_y,
                     section_inertia_z=section_inertia_z,
                     section_inertia_torsional=section_inertia_torsional,
+                    section_warping_constant=section_warping_constant,
                     section_w_el_y=section_w_el_y,
                     section_w_el_z=section_w_el_z,                    
                     section_w_pl_y=section_w_pl_y,
@@ -290,16 +295,20 @@ class SteelBeam:
         sxx, syy = section.get_s()
 
         j = None
+        gamma = None
         try:
             section.calculate_warping_properties()
             j = section.get_j()
+            gamma = section.get_gamma()
         except Exception:
             j = None
+            gamma= None
 
         self._section_area = float(area) * mm**2
         self._section_inertia_y = float(ixx_c) * mm**4
         self._section_inertia_z = float(iyy_c) * mm**4
         self._section_inertia_torsional = float(j) * mm**4 if j is not None else None
+        self._section_warping_constant = float(gamma) * mm**4 if gamma is not None else None
         self._section_w_el_y = min(float(zxx_plus),float(zxx_minus)) * mm**3
         self._section_w_el_z = min(float(zyy_plus),float(zyy_minus)) * mm**3      
         self._section_w_pl_y = float(sxx) * mm**3
@@ -336,6 +345,7 @@ class SteelBeam:
             self._section_inertia_y = float(db_entry['Iy']) * mm**4
             self._section_inertia_z = float(db_entry.get('Iz', db_entry.get('Iy', 0))) * mm**4
             self._section_inertia_torsional = float(db_entry.get('It', 0)) * mm**4
+            self._section_warping_constant = float(db_entry.get('Iw', 0)) * mm**6
             self._section_w_el_y = min(float(db_entry['Wel_y_POS']), float(db_entry['Wel_y_NEG'])) * mm**3
             self._section_w_el_z = min(float(db_entry['Wel_z_POS']), float(db_entry['Wel_z_NEG'])) * mm**3
             self._section_w_pl_y = float(db_entry['Wpl_y']) * mm**3
@@ -384,6 +394,8 @@ class SteelBeam:
                 return value.to(mm**2)
             if quantity_type == 'inertia':
                 return value.to(mm**4)
+            if quantity_type == 'warping':
+                return value.to(mm**6)
             if quantity_type == 'section_modulus':
                 return value.to(mm**3)
             return value
@@ -399,6 +411,7 @@ class SteelBeam:
         section_inertia_y,
         section_inertia_z,
         section_inertia_torsional,
+        section_warping_constant,
         section_w_el_y,
         section_w_el_z,
         section_w_pl_y,
@@ -416,6 +429,7 @@ class SteelBeam:
         self._section_inertia_y = self._normalize_to_si(section_inertia_y, mm**4, 416231.0597, 'inertia')
         self._section_inertia_z = self._normalize_to_si(section_inertia_z, mm**4, 416231.0597, 'inertia')
         self._section_inertia_torsional = self._normalize_to_si(section_inertia_torsional, mm**4, 416231.0597, 'inertia')
+        self._section_warping_constant = self._normalize_to_si(section_warping_constant, mm**6, 268535866.5401, 'warping')
         self._section_w_el_y = self._normalize_to_si(section_w_el_y, mm**3, 16387.064, 'section_modulus')
         self._section_w_el_z = self._normalize_to_si(section_w_el_z, mm**3, 16387.064, 'section_modulus')
         self._section_w_pl_y = self._normalize_to_si(section_w_pl_y, mm**3, 16387.064, 'section_modulus')
@@ -517,23 +531,26 @@ class SteelBeam:
             formatted = f"{val:.3f}".rstrip('0').rstrip('.')
             return formatted
         
-        return (
-            f"SteelBeam(Profile='{self.profile}' | units={props['units']} | "
-            f"L={fmt(props['length'])} {self._unit_label('length')} | "
-            f"E={fmt(props['elastic_modulus'])} {self._unit_label('stress')} | "
-            f"f_yk={fmt(props['f_yk'])} {self._unit_label('stress')} | "
-            f"A={fmt(props['section_area'])} {self._unit_label('area')} | "
-            f"Iy={fmt(props['section_inertia_y'])} {self._unit_label('inertia')} | "
-            f"Iz={fmt(props['section_inertia_z'])} {self._unit_label('inertia')} | "
-            f"It={fmt(props['section_inertia_torsional'])} {self._unit_label('inertia')} | "
-            f"Wpl_y={fmt(props['section_w_pl_y'])} {self._unit_label('section_modulus')} | "
-            f"Wpl_z={fmt(props['section_w_pl_z'])} {self._unit_label('section_modulus')} | "
-            f"h_w={fmt(props['h_w'])} {self._unit_label('length')} | "
-            f"t_w={fmt(props['t_w'])} {self._unit_label('length')} | "
-            f"b={fmt(props['b'])} {self._unit_label('length')} | "
-            f"t_f={fmt(props['t_f'])} {self._unit_label('length')} | "
-            f"r={fmt(props['r'])} {self._unit_label('length')}) "
-        )
+        lines = [
+            f"SteelBeam(Profile='{self.profile}' | units={props['units']} | ",
+            f"L={fmt(props['length'])} {self._unit_label('length')} | ",
+            f"E={fmt(props['elastic_modulus'])} {self._unit_label('stress')} | ",
+            f"f_yk={fmt(props['f_yk'])} {self._unit_label('stress')} | ",
+            f"A={fmt(props['section_area'])} {self._unit_label('area')} | ",
+            f"Iy={fmt(props['section_inertia_y'])} {self._unit_label('inertia')} | ",
+            f"Iz={fmt(props['section_inertia_z'])} {self._unit_label('inertia')} | ",
+            f"It={fmt(props['section_inertia_torsional'])} {self._unit_label('inertia')} | ",
+            f"Iw={fmt(props['section_warping_constant'])} {self._unit_label('warping')} | ",
+            f"Wpl_y={fmt(props['section_w_pl_y'])} {self._unit_label('section_modulus')} | ",
+            f"Wpl_z={fmt(props['section_w_pl_z'])} {self._unit_label('section_modulus')} | ",
+            f"h_w={fmt(props['h_w'])} {self._unit_label('length')} | ",
+            f"t_w={fmt(props['t_w'])} {self._unit_label('length')} | ",
+            f"b={fmt(props['b'])} {self._unit_label('length')} | ",
+            f"t_f={fmt(props['t_f'])} {self._unit_label('length')} | ",
+            f"r={fmt(props['r'])} {self._unit_label('length')})",
+        ]
+        return ''.join(lines)
+    
 
     # ==================== UNITS HANDLING ====================
     @property
